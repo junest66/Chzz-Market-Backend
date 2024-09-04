@@ -4,19 +4,19 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.chzz.market.domain.auction.dto.request.BaseRegisterRequest;
-
+import org.chzz.market.domain.auction.dto.request.StartAuctionRequest;
 import org.chzz.market.domain.auction.dto.response.RegisterResponse;
-import org.chzz.market.domain.auction.service.register.AuctionRegistrationService;
+import org.chzz.market.domain.auction.dto.response.StartAuctionResponse;
+import org.chzz.market.domain.auction.dto.response.UserAuctionResponse;
 import org.chzz.market.domain.auction.service.AuctionRegistrationServiceFactory;
 import org.chzz.market.domain.auction.service.AuctionService;
-import org.chzz.market.domain.auction.dto.request.StartAuctionRequest;
-import org.chzz.market.domain.auction.dto.response.RegisterAuctionResponse;
-import org.chzz.market.domain.auction.dto.response.StartAuctionResponse;
-import org.chzz.market.domain.auction.service.AuctionService;
+import org.chzz.market.domain.auction.service.register.AuctionRegistrationService;
 import org.chzz.market.domain.product.entity.Product.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -51,7 +51,6 @@ public class AuctionController {
         return ResponseEntity.ok(auctionService.getAuctionDetails(auctionId, 1L)); // TODO: 추후에 인증된 사용자 정보로 수정 필요
     }
 
-
     @GetMapping("/history")
     public ResponseEntity<?> getAuctionHistory(
             //                                            @AuthenticationPrincipal CustomUserDetails customUserDetails, // TODO: 추후에 인증된 사용자 정보로 수정 필요
@@ -68,7 +67,8 @@ public class AuctionController {
             @RequestPart("request") @Valid BaseRegisterRequest request,
             @RequestPart(value = "images", required = true) List<MultipartFile> images) {
 
-        AuctionRegistrationService auctionRegistrationService = registrationServiceFactory.getService(request.getAuctionRegisterType());
+        AuctionRegistrationService auctionRegistrationService = registrationServiceFactory.getService(
+                request.getAuctionRegisterType());
         RegisterResponse response = auctionRegistrationService.register(request, images);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -82,5 +82,11 @@ public class AuctionController {
         StartAuctionResponse response = auctionService.startAuction(request);
         logger.info("경매 상품으로 성공적으로 전환되었습니다. 상품 ID: {}", response.productId());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/users/{nickname}")
+    public ResponseEntity<Page<UserAuctionResponse>> getUserAuctionList(@PathVariable String nickname,
+                                                                        @PageableDefault(sort = "newest") Pageable pageable) {
+        return ResponseEntity.ok(auctionService.getAuctionListByNickname(nickname, pageable));
     }
 }
