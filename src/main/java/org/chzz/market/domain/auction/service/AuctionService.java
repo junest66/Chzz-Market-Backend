@@ -8,7 +8,6 @@ import static org.chzz.market.domain.notification.entity.Notification.Type.AUCTI
 import static org.chzz.market.domain.notification.entity.Notification.Type.AUCTION_NON_WINNER;
 import static org.chzz.market.domain.notification.entity.Notification.Type.AUCTION_SUCCESS;
 import static org.chzz.market.domain.notification.entity.Notification.Type.AUCTION_WINNER;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -116,6 +115,12 @@ public class AuctionService {
                 auction.getEndDateTime()
         );
     }
+
+
+    public List<AuctionResponse> getBestAuctionList(Long userId) {
+        return auctionRepository.findBestAuctions(userId);
+    }
+
 
     @Transactional
     public void completeAuction(Long auctionId) {
