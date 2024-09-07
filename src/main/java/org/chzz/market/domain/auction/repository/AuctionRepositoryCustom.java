@@ -51,13 +51,10 @@ public interface AuctionRepositoryCustom {
      * 홈 화면의 베스트 경매 조회
      * @return 입찰 기록이 많은 10개의 경매 정보
      */
-    List<AuctionResponse> findBestAuctions(Long userId);
+    List<AuctionResponse> findBestAuctions();
 
-    /**
-     * 사용자 ID에 따라 경매 관련 counting 값들을 조회합니다.
-     * @param userId 사용자 ID
-     * @return 사용자의 경매 관련 counting 값들
-     */
+    List<AuctionResponse> findImminentAuctions();
+    
     ParticipationCountsResponse getParticipationCounts(Long userId);
 
     /**

@@ -116,14 +116,14 @@ public class AuctionController {
      * Best 경매 상품 목록 조회~
      */
     @GetMapping("/best")
-    public ResponseEntity<?> bestAuctionList(@LoginUser Long userId) {
-        List<AuctionResponse> bestAuctionList = auctionService.getBestAuctionList(
-                userId);
+    public ResponseEntity<?> bestAuctionList() {
+        List<AuctionResponse> bestAuctionList=auctionService.getBestAuctionList();
         return ResponseEntity.ok(bestAuctionList);
     }
 
-    @GetMapping("/{auctionId}/bids")
-    public ResponseEntity<?> getBids(@LoginUser Long userId, @PathVariable Long auctionId, Pageable pageable) {
-        return ResponseEntity.ok(bidService.getBidsByAuctionId(userId, auctionId, pageable));
+    @GetMapping("/imminent")
+    public ResponseEntity<?> imminentAuctionList() {
+        List<AuctionResponse> imminentAuctionList = auctionService.getImminentAuctionList();
+        return ResponseEntity.ok(imminentAuctionList);
     }
 }
