@@ -1,14 +1,18 @@
 package org.chzz.market.domain.auction.repository;
 
-import static org.chzz.market.domain.auction.type.AuctionStatus.*;
+import static org.chzz.market.common.util.QuerydslUtil.nullSafeBuilder;
 import static org.chzz.market.domain.auction.entity.QAuction.auction;
 import static org.chzz.market.domain.auction.repository.AuctionRepositoryImpl.AuctionOrder.POPULARITY;
+import static org.chzz.market.domain.auction.type.AuctionStatus.ENDED;
+import static org.chzz.market.domain.auction.type.AuctionStatus.PROCEEDING;
+import static org.chzz.market.domain.bid.entity.Bid.BidStatus.ACTIVE;
+import static org.chzz.market.domain.bid.entity.Bid.BidStatus.CANCELLED;
 import static org.chzz.market.domain.bid.entity.QBid.bid;
 import static org.chzz.market.domain.image.entity.QImage.image;
-import static org.chzz.market.domain.like.entity.QLike.like;
 import static org.chzz.market.domain.product.entity.QProduct.product;
 import static org.chzz.market.domain.user.entity.QUser.user;
 
+import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -20,22 +24,23 @@ import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
 import java.util.Optional;
-
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.chzz.market.common.util.QuerydslOrder;
 import org.chzz.market.common.util.QuerydslOrderProvider;
-import org.chzz.market.domain.auction.dto.response.*;
 import org.chzz.market.domain.auction.dto.response.AuctionDetailsResponse;
 import org.chzz.market.domain.auction.dto.response.AuctionResponse;
+import org.chzz.market.domain.auction.dto.response.LostAuctionResponse;
 import org.chzz.market.domain.auction.dto.response.QAuctionDetailsResponse;
 import org.chzz.market.domain.auction.dto.response.QAuctionResponse;
+import org.chzz.market.domain.auction.dto.response.QLostAuctionResponse;
 import org.chzz.market.domain.auction.dto.response.QUserAuctionResponse;
+import org.chzz.market.domain.auction.dto.response.QWonAuctionResponse;
 import org.chzz.market.domain.auction.dto.response.UserAuctionResponse;
+import org.chzz.market.domain.auction.dto.response.WonAuctionResponse;
 import org.chzz.market.domain.auction.type.AuctionStatus;
-import org.chzz.market.domain.bid.entity.Bid.BidStatus;
 import org.chzz.market.domain.image.entity.QImage;
 import org.chzz.market.domain.product.entity.Product.Category;
 import org.chzz.market.domain.user.dto.response.ParticipationCountsResponse;
@@ -61,9 +66,7 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
                                                         Pageable pageable) {
         JPAQuery<?> baseQuery = jpaQueryFactory.from(auction)
                 .join(auction.product, product)
-                .leftJoin(bid).on(bid.auction.id.eq(auction.id))
-                .where(auction.product.category.eq(category))
-                .where(auction.status.eq(PROCEEDING));
+                .where(auction.product.category.eq(category).and(auction.status.eq(PROCEEDING)));
 
         List<AuctionResponse> content = baseQuery
                 .select(new QAuctionResponse(
@@ -75,6 +78,7 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
                         bid.countDistinct(),
                         isParticipating(userId)
                 ))
+                .leftJoin(bid).on(bid.auction.id.eq(auction.id).and(bid.status.eq(ACTIVE)))
                 .leftJoin(image).on(image.product.id.eq(product.id).and(image.id.eq(getFirstImageId())))
                 .groupBy(auction.id, product.name, image.cdnPath, auction.createdAt, product.minPrice)
                 .orderBy(querydslOrderProvider.getOrderSpecifiers(pageable))
@@ -101,7 +105,7 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
                 .join(auction.bids, bid)
                 .join(auction.product, product)
                 .on(bid.bidder.id.eq(userId))
-                .where(bid.status.eq(BidStatus.ACTIVE));
+                .where(bid.status.eq(ACTIVE));
 
         List<AuctionResponse> content = baseQuery
                 .select(new QAuctionResponse(
@@ -140,9 +144,9 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
                         product.name,
                         product.description,
                         product.minPrice,
-                        auction.endDateTime,
+                        timeRemaining().longValue(),
                         auction.status,
-                        user.id.eq(userId),
+                        userIdEq(userId),
                         getBidCount(),
                         bid.id.isNotNull(),
                         bid.id,
@@ -152,11 +156,8 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
                 .from(auction)
                 .join(auction.product, product)
                 .join(product.user, user)
-                .leftJoin(bid).on(bid.auction.id.eq(auctionId).and(bid.bidder.id.eq(userId)))
-                .where(
-                        auction.id.eq(auctionId)
-                                .and(auction.status.eq(PROCEEDING).or(auction.status.eq(ENDED)))
-                )
+                .leftJoin(bid).on(bid.auction.id.eq(auctionId).and(bid.status.eq(ACTIVE)).and(bidderIdEq(userId)))
+                .where(auction.id.eq(auctionId))
                 .fetchOne());
 
         auctionDetailsResponse.ifPresent(response -> response.addImageList(getImageList(response.getProductId())));
@@ -166,6 +167,7 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
 
     /**
      * 사용자 닉네임에 따라 경매 리스트를 조회합니다.
+     *
      * @param nickname 사용자 닉네임
      * @param pageable 페이징 정보
      * @return 페이징된 사용자 경매 응답 리스트
@@ -202,7 +204,7 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
 
     /**
      * 홈 화면의 베스트 경매 조회
-     * @param userId 사용자 ID
+     *
      * @return 입찰 기록이 많은 10개의 경매 정보
      */
     @Override
@@ -221,7 +223,7 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
                         bid.countDistinct())
                 )
                 .leftJoin(image).on(image.product.id.eq(product.id).and(image.id.eq(getFirstImageId())))
-                .leftJoin(bid).on(bid.auction.id.eq(auction.id).and(bid.status.ne(BidStatus.CANCELLED)))
+                .leftJoin(bid).on(bid.auction.id.eq(auction.id).and(bid.status.ne(CANCELLED)))
                 .groupBy(auction.id, product.name, image.cdnPath, auction.createdAt, product.minPrice)
                 .offset(0)
                 .limit(10)
@@ -235,8 +237,8 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
                 .join(auction.product, product)
                 .where(
                         timeRemaining().between(0, 3600)
-                        .and(auction.status.eq(PROCEEDING)))
-                .orderBy(timeRemaining().asc(),POPULARITY.getOrderSpecifier());
+                                .and(auction.status.eq(PROCEEDING)))
+                .orderBy(timeRemaining().asc(), POPULARITY.getOrderSpecifier());
 
         return baseQuery.select(new QAuctionResponse(
                         auction.id,
@@ -247,7 +249,7 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
                         bid.countDistinct())
                 )
                 .leftJoin(image).on(image.product.id.eq(product.id).and(image.id.eq(getFirstImageId())))
-                .leftJoin(bid).on(bid.auction.id.eq(auction.id).and(bid.status.ne(BidStatus.CANCELLED)))
+                .leftJoin(bid).on(bid.auction.id.eq(auction.id).and(bid.status.ne(CANCELLED)))
                 .groupBy(auction.id, product.name, image.cdnPath)
                 .offset(0)
                 .limit(10)
@@ -256,9 +258,10 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
 
     /**
      * 사용자가 낙찰한 경매 이력을 조회합니다.
-     * @param userId    사용자 ID
-     * @param pageable  페이징 정보
-     * @return          페이징된 낙찰 경매 응답 리스트
+     *
+     * @param userId   사용자 ID
+     * @param pageable 페이징 정보
+     * @return 페이징된 낙찰 경매 응답 리스트
      */
     @Override
     public Page<WonAuctionResponse> findWonAuctionHistoryByUserId(Long userId, Pageable pageable) {
@@ -266,8 +269,8 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
                 .from(auction)
                 .join(auction.product, product)
                 .join(product.user, user)
-                .leftJoin(bid).on(bid.auction.eq(auction)
-                        .and(bid.status.ne(BidStatus.CANCELLED)))
+                .join(bid).on(bid.auction.eq(auction)
+                        .and(bid.status.ne(CANCELLED).and(bid.bidder.id.eq(userId))))
                 .where(auction.winnerId.eq(userId)
                         .and(auction.status.eq(ENDED)));
 
@@ -281,7 +284,7 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
                         bid.amount
                 ))
                 .leftJoin(image).on(image.product.eq(product).and(image.id.eq(getFirstImageId())))
-                .groupBy(auction.id, product.name, image.cdnPath, product.minPrice)
+                .groupBy(auction.id, product.name, image.cdnPath, product.minPrice, bid.amount)
                 .orderBy(querydslOrderProvider.getOrderSpecifiers(pageable))
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
@@ -295,9 +298,10 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
 
     /**
      * 사용자가 낙찰하지 못한 경매 이력을 조회합니다.
+     *
      * @param userId   사용자 ID
      * @param pageable 페이징 정보
-     * @return         페이징된 낙찰 경매 응답 리스트
+     * @return 페이징된 낙찰 경매 응답 리스트
      */
     @Override
     public Page<LostAuctionResponse> findLostAuctionHistoryByUserId(Long userId, Pageable pageable) {
@@ -306,7 +310,7 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
                 .join(auction.product, product)
                 .join(bid).on(bid.auction.eq(auction)
                         .and(bid.bidder.id.eq(userId))
-                        .and(bid.status.ne(BidStatus.CANCELLED)))
+                        .and(bid.status.ne(CANCELLED)))
                 .where(auction.winnerId.ne(userId).or(auction.winnerId.isNull())
                         .and(auction.status.eq(ENDED)));
 
@@ -320,7 +324,7 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
                         bid.amount
                 ))
                 .leftJoin(image).on(image.product.eq(product).and(image.id.eq(getFirstImageId())))
-                .groupBy(auction.id, product.name, image.cdnPath, product.minPrice)
+                .groupBy(auction.id, product.name, image.cdnPath, product.minPrice, bid.amount)
                 .orderBy(querydslOrderProvider.getOrderSpecifiers(pageable))
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
@@ -342,7 +346,7 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
                 )
                 .from(auction)
                 .join(auction.bids, bid)
-                .where(bid.bidder.id.eq(userId).and(bid.status.ne(BidStatus.CANCELLED)))
+                .where(bid.bidder.id.eq(userId).and(bid.status.ne(CANCELLED)))
                 .groupBy(auction.status, auction.winnerId)
                 .fetch();
 
@@ -356,7 +360,7 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
             Long winnerId = tuple.get(auction.winnerId);
             Long count = tuple.get(2, Long.class);
 
-            if (status == AuctionStatus.PROCEEDING) {
+            if (status == PROCEEDING) {
                 ongoingAuctionCount += count;
             } else {
                 endedAuctionCount += count;
@@ -458,8 +462,9 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
      * @return 사용자가 참여 중인 경우 true, 그렇지 않으면 false
      */
     private BooleanExpression isParticipating(Long userId) {
-        return JPAExpressions.selectFrom(bid)
-                .where(bid.auction.id.eq(auction.id).and(bid.bidder.id.eq(userId)))
+        return JPAExpressions.selectOne()
+                .from(bid)
+                .where(bid.auction.id.eq(auction.id).and(bid.status.eq(ACTIVE).and(bidderIdEq(userId))))
                 .exists();
     }
 
@@ -472,7 +477,7 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
         return JPAExpressions
                 .select(bid.count())
                 .from(bid)
-                .where(bid.auction.id.eq(auction.id));
+                .where(bid.auction.id.eq(auction.id).and(bid.status.eq(ACTIVE)));
     }
 
     /**
@@ -489,8 +494,16 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
     }
 
     private static NumberExpression<Integer> timeRemaining() {
-        return Expressions.numberTemplate(Integer.class, "TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, {0})",
-                auction.endDateTime);
+        return Expressions.numberTemplate(Integer.class,
+                "GREATEST(0, TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, {0}))", auction.endDateTime); // 음수면 0으로 처리
+    }
+
+    private BooleanBuilder userIdEq(Long userId) {
+        return nullSafeBuilder(() -> user.id.eq(userId));
+    }
+
+    private BooleanBuilder bidderIdEq(Long userId) {
+        return nullSafeBuilder(() -> bid.bidder.id.eq(userId));
     }
 
     @Getter

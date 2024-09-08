@@ -1,29 +1,40 @@
 package org.chzz.market.domain.auction.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.chzz.market.domain.auction.type.AuctionStatus.PROCEEDING;
-import static org.chzz.market.domain.auction.error.AuctionErrorCode.*;
-import static org.chzz.market.domain.product.entity.Product.Category.*;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.chzz.market.domain.auction.error.AuctionErrorCode.AUCTION_ALREADY_REGISTERED;
+import static org.chzz.market.domain.auction.error.AuctionErrorCode.AUCTION_NOT_ACCESSIBLE;
+import static org.chzz.market.domain.auction.error.AuctionErrorCode.AUCTION_NOT_FOUND;
 import static org.chzz.market.domain.auction.type.AuctionRegisterType.PRE_REGISTER;
 import static org.chzz.market.domain.auction.type.AuctionRegisterType.REGISTER;
+import static org.chzz.market.domain.auction.type.AuctionStatus.PROCEEDING;
+import static org.chzz.market.domain.product.entity.Product.Category.ELECTRONICS;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.anyList;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-
 import org.chzz.market.domain.auction.dto.request.BaseRegisterRequest;
-import org.chzz.market.domain.auction.dto.response.*;
-
 import org.chzz.market.domain.auction.dto.request.PreRegisterRequest;
 import org.chzz.market.domain.auction.dto.request.RegisterAuctionRequest;
 import org.chzz.market.domain.auction.dto.request.StartAuctionRequest;
-
+import org.chzz.market.domain.auction.dto.response.AuctionDetailsResponse;
+import org.chzz.market.domain.auction.dto.response.LostAuctionResponse;
+import org.chzz.market.domain.auction.dto.response.RegisterResponse;
+import org.chzz.market.domain.auction.dto.response.StartAuctionResponse;
+import org.chzz.market.domain.auction.dto.response.WonAuctionResponse;
 import org.chzz.market.domain.auction.entity.Auction;
 import org.chzz.market.domain.auction.error.AuctionException;
 import org.chzz.market.domain.auction.repository.AuctionRepository;
@@ -46,7 +57,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -93,7 +108,6 @@ class AuctionServiceTest {
                 .build();
 
         registerAuctionRequest = RegisterAuctionRequest.builder()
-                .userId(1L)
                 .productName("경매 등록 테스트 상품 이름")
                 .description("경매 등록 테스트 상품 설명")
                 .category(ELECTRONICS)
@@ -102,7 +116,6 @@ class AuctionServiceTest {
                 .build();
 
         preRegisterRequest = PreRegisterRequest.builder()
-                .userId(1L)
                 .productName("사전 등록 테스트 상품 이름")
                 .description("사전 등록 테스트 상품 설명")
                 .category(ELECTRONICS)
@@ -112,12 +125,10 @@ class AuctionServiceTest {
 
         validStartAuctionRequest = StartAuctionRequest.builder()
                 .productId(1L)
-                .userId(1L)
                 .build();
 
         invalidStartAuctionRequest = StartAuctionRequest.builder()
                 .productId(999L)
-                .userId(1L)
                 .build();
 
         System.setProperty("org.mockito.logging.verbosity", "all");
@@ -145,7 +156,7 @@ class AuctionServiceTest {
             when(productRepository.save(any(Product.class))).thenReturn(savedProduct);
 
             // when
-            RegisterResponse response = preRegisterService.register(preRegisterRequest, images);
+            RegisterResponse response = preRegisterService.register(userId, preRegisterRequest, images);
 
             // then
             assertNotNull(response);
@@ -161,7 +172,6 @@ class AuctionServiceTest {
             // Given
             Long userId = 999L;
             PreRegisterRequest invalidPreRegisterRequest = PreRegisterRequest.builder()
-                    .userId(userId)
                     .productName("사전 등록 테스트 상품 이름")
                     .description("사전 등록 테스트 상품 설명")
                     .category(ELECTRONICS)
@@ -175,7 +185,7 @@ class AuctionServiceTest {
 
             // When & Then
             assertThrows(UserException.class, () -> {
-                preRegisterService.register(invalidPreRegisterRequest, images);
+                preRegisterService.register(userId, invalidPreRegisterRequest, images);
             });
 
             // verify
@@ -213,7 +223,7 @@ class AuctionServiceTest {
             when(auctionRepository.save(any(Auction.class))).thenReturn(auction);
 
             // when
-            RegisterResponse response = auctionRegisterService.register(registerAuctionRequest, images);
+            RegisterResponse response = auctionRegisterService.register(userId, registerAuctionRequest, images);
 
             // then
             assertNotNull(response);
@@ -230,7 +240,6 @@ class AuctionServiceTest {
             // Given
             Long userId = 999L;
             RegisterAuctionRequest invalidRegisterAuctionRequest = RegisterAuctionRequest.builder()
-                    .userId(userId)
                     .productName("경매 등록 테스트 상품 이름")
                     .description("경매 등록 테스트 상품 설명")
                     .category(ELECTRONICS)
@@ -244,7 +253,7 @@ class AuctionServiceTest {
 
             // When & Then
             assertThrows(UserException.class, () -> {
-                auctionRegisterService.register(invalidRegisterAuctionRequest, images);
+                auctionRegisterService.register(userId, invalidRegisterAuctionRequest, images);
             });
 
             // verify
@@ -270,7 +279,8 @@ class AuctionServiceTest {
             Product preRegisteredProduct = ProductTestFactory.createProduct(preRegisterRequest, user);
             ReflectionTestUtils.setField(preRegisteredProduct, "id", productId);
 
-            Auction newAuction = AuctionTestFactory.createAuction(preRegisteredProduct, registerAuctionRequest, PROCEEDING);
+            Auction newAuction = AuctionTestFactory.createAuction(preRegisteredProduct, registerAuctionRequest,
+                    PROCEEDING);
             ReflectionTestUtils.setField(newAuction, "id", newAuctionId);
             ReflectionTestUtils.setField(newAuction, "endDateTime", LocalDateTime.now().plusHours(24));
 
@@ -279,7 +289,7 @@ class AuctionServiceTest {
             when(auctionRepository.save(any(Auction.class))).thenReturn(newAuction);
 
             // when
-            StartAuctionResponse response = auctionService.startAuction(validStartAuctionRequest);
+            StartAuctionResponse response = auctionService.startAuction(1L, validStartAuctionRequest);
 
             // then
             assertNotNull(response);
@@ -302,7 +312,7 @@ class AuctionServiceTest {
 
             // When & Then
             AuctionException exception = assertThrows(AuctionException.class,
-                    () -> auctionService.startAuction(invalidStartAuctionRequest));
+                    () -> auctionService.startAuction(any(), invalidStartAuctionRequest));
 
             assertEquals(AUCTION_NOT_FOUND, exception.getErrorCode());
             verify(auctionRepository, never()).save(any(Auction.class));
@@ -322,7 +332,7 @@ class AuctionServiceTest {
 
             // When & Then
             AuctionException exception = assertThrows(AuctionException.class,
-                    () -> auctionService.startAuction(validStartAuctionRequest));
+                    () -> auctionService.startAuction(1L, validStartAuctionRequest));
             assertEquals(AUCTION_ALREADY_REGISTERED, exception.getErrorCode());
 
             verify(auctionRepository, never()).save(any(Auction.class));
@@ -339,10 +349,11 @@ class AuctionServiceTest {
             Long existingAuctionId = 1L;
             Long userId = 1L;
             AuctionDetailsResponse auctionDetails = new AuctionDetailsResponse(1L, "닉네임2", "제품1", null, 1000,
-                    LocalDateTime.now().plusDays(1), PROCEEDING, false, 0L, false, null, 0L, 0);
+                    123L, PROCEEDING, false, 0L, false, null, 0L, 0);
 
             // when
-            when(auctionRepository.findAuctionDetailsById(anyLong(), anyLong())).thenReturn(Optional.of(auctionDetails));
+            when(auctionRepository.findAuctionDetailsById(anyLong(), anyLong())).thenReturn(
+                    Optional.of(auctionDetails));
 
             // then
             assertDoesNotThrow(() -> {
@@ -435,8 +446,10 @@ class AuctionServiceTest {
                     new WonAuctionResponse(2L, "Product 2", "image2.jpg", 20000, LocalDateTime.now(), 25000L)
             );
 
-            Page<WonAuctionResponse> firstPage = new PageImpl<>(allAuctions.subList(0, 1), firstPageable, allAuctions.size());
-            Page<WonAuctionResponse> secondPage = new PageImpl<>(allAuctions.subList(1, 2), secondPageable, allAuctions.size());
+            Page<WonAuctionResponse> firstPage = new PageImpl<>(allAuctions.subList(0, 1), firstPageable,
+                    allAuctions.size());
+            Page<WonAuctionResponse> secondPage = new PageImpl<>(allAuctions.subList(1, 2), secondPageable,
+                    allAuctions.size());
 
             when(auctionRepository.findWonAuctionHistoryByUserId(userId, firstPageable)).thenReturn(firstPage);
             when(auctionRepository.findWonAuctionHistoryByUserId(userId, secondPageable)).thenReturn(secondPage);
@@ -462,7 +475,7 @@ class AuctionServiceTest {
             Long userId = 1L;
             Pageable pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "endDateTime"));
 
-            LocalDateTime now  = LocalDateTime.now();
+            LocalDateTime now = LocalDateTime.now();
             List<WonAuctionResponse> wonAuctions = List.of(
                     new WonAuctionResponse(1L, "Product 1", "image1.jpg", 10000, now, 15000L),
                     new WonAuctionResponse(2L, "Product 2", "image2.jpg", 20000, now.minusHours(1), 25000L),
@@ -553,8 +566,10 @@ class AuctionServiceTest {
                     new LostAuctionResponse(2L, "Product 2", "image2.jpg", 20000, LocalDateTime.now(), 25000L)
             );
 
-            Page<LostAuctionResponse> firstPage = new PageImpl<>(allAuctions.subList(0, 1), firstPageable, allAuctions.size());
-            Page<LostAuctionResponse> secondPage = new PageImpl<>(allAuctions.subList(1, 2), secondPageable, allAuctions.size());
+            Page<LostAuctionResponse> firstPage = new PageImpl<>(allAuctions.subList(0, 1), firstPageable,
+                    allAuctions.size());
+            Page<LostAuctionResponse> secondPage = new PageImpl<>(allAuctions.subList(1, 2), secondPageable,
+                    allAuctions.size());
 
             when(auctionRepository.findLostAuctionHistoryByUserId(userId, firstPageable)).thenReturn(firstPage);
             when(auctionRepository.findLostAuctionHistoryByUserId(userId, secondPageable)).thenReturn(secondPage);
@@ -580,7 +595,7 @@ class AuctionServiceTest {
             Long userId = 1L;
             Pageable pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "endDateTime"));
 
-            LocalDateTime now  = LocalDateTime.now();
+            LocalDateTime now = LocalDateTime.now();
             List<LostAuctionResponse> lostAuctions = List.of(
                     new LostAuctionResponse(1L, "Product 1", "image1.jpg", 10000, now, 15000L),
                     new LostAuctionResponse(2L, "Product 2", "image2.jpg", 20000, now.minusHours(1), 25000L),
