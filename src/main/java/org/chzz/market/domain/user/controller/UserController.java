@@ -57,6 +57,11 @@ public class UserController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping("/customer-key")
+    public ResponseEntity<String> getCustomerKey(@LoginUser Long userId) {
+        return ResponseEntity.ok(userService.getCustomerKey(userId));
+    }
+
     /**
      * 내 프로필 수정
      */

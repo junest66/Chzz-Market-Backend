@@ -11,12 +11,14 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.UUID;
 
+import java.util.stream.Stream;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -69,6 +71,9 @@ public class User extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     private ProviderType providerType;
 
+    @Column(columnDefinition = "binary(16)", unique = true, nullable = false)
+    private UUID customerKey;
+
     @Builder.Default
     @OneToMany(mappedBy = "bidder", fetch = FetchType.LAZY)
     private List<Bid> bids = new ArrayList<>();
@@ -88,6 +93,13 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<BankAccount> bankAccounts = new ArrayList<>();
+
+    @PrePersist
+    public void prePersist() {
+        if (customerKey == null) {
+            customerKey = UUID.randomUUID();//TODO 2024 09 11 22:33:46 : 분산 시스템에서 사용 가능한 UUID 생성 고려
+        }
+    }
 
     public void addBankAccount(BankAccount bankAccount) {
         this.bankAccounts.add(bankAccount);
