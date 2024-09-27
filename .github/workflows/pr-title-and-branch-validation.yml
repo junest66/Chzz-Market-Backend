@@ -12,7 +12,7 @@ on:
 jobs:
   validate-title-and-branch:
     runs-on: ubuntu-latest
-    if: ${{ !(github.head_ref == 'main' && github.base_ref == 'develop') }} # main -> develop일 때는 실행하지 않음
+    if: ${{ !(startsWith(github.head_ref, 'release/') && github.base_ref == 'develop') }} # release/* -> develop일 때는 실행하지 않음
     steps:
       - name: Check out code
         uses: actions/checkout@v3
