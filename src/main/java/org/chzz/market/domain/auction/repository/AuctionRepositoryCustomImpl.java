@@ -2,7 +2,7 @@ package org.chzz.market.domain.auction.repository;
 
 import static org.chzz.market.common.util.QuerydslUtil.nullSafeBuilder;
 import static org.chzz.market.domain.auction.entity.QAuction.auction;
-import static org.chzz.market.domain.auction.repository.AuctionRepositoryImpl.AuctionOrder.POPULARITY;
+import static org.chzz.market.domain.auction.repository.AuctionRepositoryCustomImpl.AuctionOrder.POPULARITY;
 import static org.chzz.market.domain.auction.type.AuctionStatus.ENDED;
 import static org.chzz.market.domain.auction.type.AuctionStatus.PROCEEDING;
 import static org.chzz.market.domain.bid.entity.Bid.BidStatus.ACTIVE;
@@ -13,14 +13,17 @@ import static org.chzz.market.domain.product.entity.QProduct.product;
 import static org.chzz.market.domain.user.entity.QUser.user;
 
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.types.Ops.DateTimeOps;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.DateTimeOperation;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.JPQLQuery;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import lombok.AccessLevel;
@@ -29,15 +32,27 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.chzz.market.common.util.QuerydslOrder;
 import org.chzz.market.common.util.QuerydslOrderProvider;
-import org.chzz.market.domain.auction.dto.response.*;
+import org.chzz.market.domain.auction.dto.response.AuctionDetailsResponse;
+import org.chzz.market.domain.auction.dto.response.AuctionResponse;
+import org.chzz.market.domain.auction.dto.response.LostAuctionResponse;
+import org.chzz.market.domain.auction.dto.response.QAuctionDetailsResponse;
+import org.chzz.market.domain.auction.dto.response.QAuctionResponse;
+import org.chzz.market.domain.auction.dto.response.QLostAuctionResponse;
+import org.chzz.market.domain.auction.dto.response.QSimpleAuctionResponse;
+import org.chzz.market.domain.auction.dto.response.QUserAuctionResponse;
+import org.chzz.market.domain.auction.dto.response.QWonAuctionResponse;
+import org.chzz.market.domain.auction.dto.response.SimpleAuctionResponse;
+import org.chzz.market.domain.auction.dto.response.UserAuctionResponse;
+import org.chzz.market.domain.auction.dto.response.WonAuctionResponse;
 import org.chzz.market.domain.image.entity.QImage;
 import org.chzz.market.domain.product.entity.Product.Category;
+import org.chzz.market.domain.user.dto.response.ParticipationCountsResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.support.PageableExecutionUtils;
 
 @RequiredArgsConstructor
-public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
+public class AuctionRepositoryCustomImpl implements AuctionRepositoryCustom {
     private final JPAQueryFactory jpaQueryFactory;
     private final QuerydslOrderProvider querydslOrderProvider;
 
@@ -88,12 +103,8 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
      */
     @Override
     public Page<AuctionResponse> findParticipatingAuctionRecord(Long userId, Pageable pageable) {
-        JPAQuery<?> baseQuery = jpaQueryFactory
-                .from(auction)
-                .join(auction.bids, bid)
-                .join(auction.product, product)
-                .on(bid.bidder.id.eq(userId))
-                .where(bid.status.eq(ACTIVE));
+        JPAQuery<?> baseQuery = getActualParticipatedAuction(userId)
+                .join(auction.product, product);
 
         List<AuctionResponse> content = baseQuery
                 .select(new QAuctionResponse(
@@ -196,6 +207,7 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
 
     /**
      * 사용자 인증정보를 통해 사용자가 등록한 경매 리스트를 조회합니다.
+     *
      * @param userId   사용자 ID
      * @param pageable 페이징 정보
      * @return 페이징된 사용자 경매 응답 리스트
@@ -231,9 +243,8 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
                 .fetch();
 
         JPAQuery<Long> countQuery = baseQuery.select(auction.count());
-        return  PageableExecutionUtils.getPage(content, pageable, countQuery::fetchCount);
+        return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchCount);
     }
-
 
     /**
      * 홈 화면의 베스트 경매 조회
@@ -303,12 +314,9 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
      */
     @Override
     public Page<WonAuctionResponse> findWonAuctionHistoryByUserId(Long userId, Pageable pageable) {
-        JPAQuery<?> baseQuery = jpaQueryFactory
-                .from(auction)
+        JPAQuery<?> baseQuery = getActualParticipatedAuction(userId)
                 .join(auction.product, product)
-                .join(product.user, user)
-                .join(bid).on(bid.auction.eq(auction)
-                        .and(bid.status.ne(CANCELLED).and(bid.bidder.id.eq(userId))))
+//                .join(product.user, user)//?? 안쓰는데
                 .where(auction.winnerId.eq(userId)
                         .and(auction.status.eq(ENDED)));
 
@@ -343,14 +351,10 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
      */
     @Override
     public Page<LostAuctionResponse> findLostAuctionHistoryByUserId(Long userId, Pageable pageable) {
-        JPAQuery<?> baseQuery = jpaQueryFactory
-                .from(auction)
+        JPAQuery<?> baseQuery = getActualParticipatedAuction(userId)
                 .join(auction.product, product)
-                .join(bid).on(bid.auction.eq(auction)
-                        .and(bid.bidder.id.eq(userId))
-                        .and(bid.status.ne(CANCELLED)))
-                .where(auction.winnerId.ne(userId).or(auction.winnerId.isNull())
-                        .and(auction.status.eq(ENDED)));
+                .where(auction.winnerId.ne(userId)
+                        .or(auction.winnerId.isNull().and(auction.status.eq(ENDED))));
 
         List<LostAuctionResponse> content = baseQuery
                 .select(new QLostAuctionResponse(
@@ -374,89 +378,70 @@ public class AuctionRepositoryImpl implements AuctionRepositoryCustom {
         return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchCount);
     }
 
-    /**
-     * 사용자의 참여 횟수, 낙찰 횟수, 낙찰 실패 횟수를 조회합니다.
-     *
-     * @param userId 사용자 ID
-     * @return 참여 횟수, 낙찰 횟수, 낙찰 실패 횟수 응답
-     */
     @Override
-    public List<AuctionParticipationResponse> getAuctionParticipations(Long userId) {
-        return jpaQueryFactory
-                .select(new QAuctionParticipationResponse(
-                        auction.status,
-                        auction.winnerId,
-                        auction.id.countDistinct()
-                ))
+    public ParticipationCountsResponse getParticipationCounts(Long userId) {
+        DateTimeOperation<LocalDateTime> now = Expressions.dateTimeOperation(LocalDateTime.class,
+                DateTimeOps.CURRENT_TIMESTAMP);
+
+        BooleanExpression isEnded = auction.status.eq(ENDED)
+                .and(auction.endDateTime.before(now));
+
+        // 사용자가 참여한 경매 ID 목록을 가져옵니다.
+        List<Long> participatedAuctionIds = jpaQueryFactory
+                .select(auction.id)
                 .from(auction)
                 .join(auction.bids, bid)
-                .where(bid.bidder.id.eq(userId).and(bid.status.ne(CANCELLED)))
-                .groupBy(auction.status, auction.winnerId)
+                .where(bid.bidder.id.eq(userId)
+                        .and(bid.status.eq(ACTIVE)))
                 .fetch();
+
+        BooleanExpression isParticipatedAuction = auction.id.in(participatedAuctionIds);
+
+        Long proceedingCount = Optional.ofNullable(jpaQueryFactory
+                        .select(auction.count())
+                        .from(auction)
+                        .where(isParticipatedAuction
+                                .and(auction.status.eq(PROCEEDING))
+                                .and(auction.endDateTime.after(now)))
+                        .fetchFirst())
+                .orElse(0L);
+
+        Long successCount = Optional.ofNullable(jpaQueryFactory
+                        .select(auction.count())
+                        .from(auction)
+                        .where(isParticipatedAuction
+                                .and(auction.winnerId.eq(userId))
+                                .and(isEnded))
+                        .fetchFirst())
+                .orElse(0L);
+
+        Long failureCount = Optional.ofNullable(jpaQueryFactory
+                        .select(auction.count())
+                        .from(auction)
+                        .where(isParticipatedAuction
+                                .and(auction.winnerId.ne(userId))
+                                .and(isEnded))
+                        .fetchFirst())
+                .orElse(0L);
+
+        return new ParticipationCountsResponse(
+                proceedingCount,
+                successCount,
+                failureCount
+        );
     }
 
     /**
-     * 사용자가 참여 중인 경매 수를 조회합니다.
-     *
-     * @param userId 사용자 ID
-     * @return 참여 중인 경매 수
+     * @param userId 사용자 pk
+     * @return 실제 사용자가 참여한 경매(취소된 입찰 제외)
      */
-//    private JPQLQuery<Long> getOngoingAuctionCount(Long userId) {
-//        return JPAExpressions
-//                .select(auction.id.count())
-//                .from(auction)
-//                .join(auction.bids, bid)
-//                .where(auction.status.eq(PROCEEDING)
-//                        .and(bid.bidder.id.eq(userId))
-//                        .and(bid.status.ne(BidStatus.CANCELLED)));
-//    }
-
-    /**
-     * 사용자의 낙찰 성공 경매 수를 조회합니다.
-     *
-     * @param userId 사용자 ID
-     * @return 낙찰 경매 수
-     */
-//    private JPQLQuery<Long> getSuccessfulAuctionCount(Long userId) {
-//        return JPAExpressions
-//                .select(auction.id.count())
-//                .from(auction)
-//                .where(auction.status.eq(ENDED)
-//                        .and(auction.winnerId.eq(userId)));
-//    }
-
-    /**
-     * 사용자의 낙찰 실패 경매 수를 조회합니다.
-     *
-     * @param userId 사용자 ID
-     * @return 낙찰 실패 경매 수
-     */
-//    private JPQLQuery<Long> getFailedAuctionCount(Long userId) {
-//        return JPAExpressions
-//                .select(auction.id.count())
-//                .from(auction)
-//                .join(auction.bids, bid)
-//                .where(auction.status.eq(ENDED)
-//                        .and(auction.winnerId.ne(userId))
-//                        .and(bid.bidder.id.eq(userId))
-//                        .and(bid.status.ne(BidStatus.CANCELLED)));
-//    }
-
-    /**
-     * 사용자의 낙찰 취소 경매 수를 조회합니다.
-     *
-     * @param userId 사용자 ID
-     * @return 낙찰 취소 경매 수
-     */
-//    private JPQLQuery<Long> getEndedAuctionCount(Long userId) {
-//        return JPAExpressions
-//                .select(auction.countDistinct())
-//                .from(auction)
-//                .join(auction.bids, bid)
-//                .where(auction.status.eq(ENDED)
-//                        .and(bid.bidder.id.eq(userId))
-//                        .and(bid.status.ne(BidStatus.CANCELLED)));
-//    }
+    private JPAQuery<?> getActualParticipatedAuction(Long userId) {
+        return jpaQueryFactory
+                .from(auction)
+                .join(auction.bids, bid)
+                .on(bid.bidder.id.eq(userId)
+                        .and(bid.status.eq(ACTIVE)));
+    }
 
     /**
      * 상품의 첫 번째 이미지를 조회합니다.
