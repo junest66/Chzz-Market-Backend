@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+
 @Slf4j
 @RequiredArgsConstructor
 @RestController
@@ -77,7 +78,14 @@ public class ProductController {
     public ResponseEntity<Page<ProductResponse>> getMyProductList(
             @PathVariable String nickname,
             Pageable pageable) {
-        return ResponseEntity.ok(productService.getMyProductList(nickname, pageable));
+        return ResponseEntity.ok(productService.getProductListByNickname(nickname, pageable));
+    }
+
+    @GetMapping("/users")
+    public ResponseEntity<Page<ProductResponse>> getRegisteredProductList(
+            @LoginUser Long userId,
+            Pageable pageable) {
+        return ResponseEntity.ok(productService.getProductListByUserId(userId, pageable));
     }
 
     /*
