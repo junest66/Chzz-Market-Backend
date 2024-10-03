@@ -353,29 +353,30 @@ public class AuctionRepositoryCustomImpl implements AuctionRepositoryCustom {
     public Page<LostAuctionResponse> findLostAuctionHistoryByUserId(Long userId, Pageable pageable) {
         JPAQuery<?> baseQuery = getActualParticipatedAuction(userId)
                 .join(auction.product, product)
-                .where(auction.winnerId.ne(userId)
-                        .or(auction.winnerId.isNull().and(auction.status.eq(ENDED))));
+                .leftJoin(image).on(image.product.eq(product).and(image.id.eq(getFirstImageId())))
+                .where(auction.winnerId.ne(userId).and(auction.status.eq(ENDED)));
 
-        List<LostAuctionResponse> content = baseQuery
+        List<LostAuctionResponse> query = baseQuery
                 .select(new QLostAuctionResponse(
                         auction.id,
                         product.name,
                         image.cdnPath,
                         product.minPrice,
                         auction.endDateTime,
-                        bid.amount
+                        JPAExpressions.select(bid.amount.max())
+                                .from(bid)
+                                .where(bid.auction.eq(auction))
                 ))
-                .leftJoin(image).on(image.product.eq(product).and(image.id.eq(getFirstImageId())))
-                .groupBy(auction.id, product.name, image.cdnPath, product.minPrice, bid.amount)
+                .groupBy(auction.id, product.name, image.cdnPath, product.minPrice, auction.endDateTime)
                 .orderBy(querydslOrderProvider.getOrderSpecifiers(pageable))
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch();
 
         JPAQuery<Long> countQuery = baseQuery
-                .select(auction.count());
+                .select(auction.countDistinct());
 
-        return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchCount);
+        return PageableExecutionUtils.getPage(query, pageable, countQuery::fetchCount);
     }
 
     @Override
