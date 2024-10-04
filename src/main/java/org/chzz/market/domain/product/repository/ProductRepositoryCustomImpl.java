@@ -93,7 +93,8 @@ public class ProductRepositoryCustomImpl implements ProductRepositoryCustom {
                         product.description,
                         product.likes.size().longValue(),
                         isProductLikedByUser(userId),
-                        nullSafeBuilder(() -> user.id.eq(userId))
+                        nullSafeBuilder(() -> user.id.eq(userId)),
+                        product.category
                 ))
                 .from(product)
                 .join(product.user, user)
@@ -135,8 +136,9 @@ public class ProductRepositoryCustomImpl implements ProductRepositoryCustom {
     public Page<ProductResponse> findProductsByUserId(Long userId, Pageable pageable) {
         JPAQuery<?> baseQuery = jpaQueryFactory.from(product)
                 .join(product.user, user)
-                .join(auction.product, product)
-                .on(user.id.eq(product.id));
+                .leftJoin(auction).on(auction.product.eq(product))
+                .leftJoin(like).on(like.product.eq(product).and(like.user.id.eq(userId)))
+                .where(auction.isNull().and(user.id.eq(userId)));
 
         return getProductResponses(pageable, baseQuery);
     }
