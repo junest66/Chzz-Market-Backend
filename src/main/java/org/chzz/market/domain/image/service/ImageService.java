@@ -30,6 +30,7 @@ public class ImageService {
     private final ImageUploader imageUploader;
     private final ImageRepository imageRepository;
     private final AmazonS3 amazonS3Client;
+    private final S3ImageUploader s3ImageUploader;
 
     @Value("${cloud.aws.cloudfront.domain}")
     private String cloudfrontDomain;

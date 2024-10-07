@@ -4,6 +4,7 @@ import com.querydsl.core.annotations.QueryProjection;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.Getter;
+import org.chzz.market.domain.image.dto.ImageResponse;
 import org.chzz.market.domain.product.entity.Product.Category;
 
 /**
@@ -16,25 +17,25 @@ public class ProductDetailsResponse {
     private final String sellerNickname;
     private final String sellerProfileImageUrl;
     private final Integer minPrice;
-    private final LocalDateTime createdAt;
+    private final LocalDateTime updatedAt;
     private final String description;
     private final Long likeCount;
     private final Boolean isLiked;
     private final Boolean isSeller;
     private final Category category;
-    private List<String> imageUrls;
+    private List<ImageResponse> images;
 
     @QueryProjection
     public ProductDetailsResponse(Long productId, String productName, String sellerNickname,
                                   String sellerProfileImageUrl,
-                                  Integer minPrice, LocalDateTime createdAt, String description,
+                                  Integer minPrice, LocalDateTime updatedAt, String description,
                                   Long likeCount, Boolean isLiked, Boolean isSeller, Category category) {
         this.productId = productId;
         this.productName = productName;
         this.sellerNickname = sellerNickname;
         this.sellerProfileImageUrl = sellerProfileImageUrl;
         this.minPrice = minPrice;
-        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
         this.description = description;
         this.likeCount = likeCount;
         this.isLiked = isLiked;
@@ -42,7 +43,7 @@ public class ProductDetailsResponse {
         this.category = category;
     }
 
-    public void addImageList(List<String> imageUrls) {
-        this.imageUrls = imageUrls;
+    public void addImageList(List<ImageResponse> images) {
+        this.images = images;
     }
 }
