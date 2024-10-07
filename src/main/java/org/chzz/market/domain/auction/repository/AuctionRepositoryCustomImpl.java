@@ -116,6 +116,7 @@ public class AuctionRepositoryCustomImpl implements AuctionRepositoryCustom {
                         getBidCount()
                 ))
                 .leftJoin(image).on(image.product.id.eq(product.id).and(image.id.eq(getFirstImageId())))
+                .where(auction.status.eq(PROCEEDING).and(auction.endDateTime.after(LocalDateTime.now())))
                 .groupBy(auction.id, product.name, image.cdnPath)
                 .orderBy(querydslOrderProvider.getOrderSpecifiers(pageable))
                 .offset(pageable.getOffset())
@@ -140,6 +141,7 @@ public class AuctionRepositoryCustomImpl implements AuctionRepositoryCustom {
                 .select(new QAuctionDetailsResponse(
                         product.id,
                         user.nickname,
+                        user.profileImageUrl,
                         product.name,
                         product.description,
                         product.minPrice,
