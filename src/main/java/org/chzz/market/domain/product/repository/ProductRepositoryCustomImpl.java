@@ -12,6 +12,7 @@ import static org.chzz.market.domain.user.entity.QUser.user;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.JPQLQuery;
 import com.querydsl.jpa.impl.JPAQuery;
@@ -31,6 +32,7 @@ import org.chzz.market.domain.product.dto.ProductDetailsResponse;
 import org.chzz.market.domain.product.dto.ProductResponse;
 import org.chzz.market.domain.product.dto.QProductDetailsResponse;
 import org.chzz.market.domain.product.dto.QProductResponse;
+import org.chzz.market.domain.product.entity.Product;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.support.PageableExecutionUtils;
@@ -109,7 +111,7 @@ public class ProductRepositoryCustomImpl implements ProductRepositoryCustom {
                     .select(new QImageResponse(image.id, image.cdnPath))
                     .from(image)
                     .where(image.product.id.eq(productId))
-                    .orderBy(image.id.asc())
+                    .orderBy(image.sequence.asc())
                     .fetch();
             response.addImageList(images);
             return response;
@@ -206,19 +208,22 @@ public class ProductRepositoryCustomImpl implements ProductRepositoryCustom {
         return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
     }
 
-    private JPQLQuery<Long> getFirstImageId() {
-        QImage imageSub = new QImage("imageSub");
-        return JPAExpressions.select(imageSub.id.min())
-                .from(imageSub)
-                .where(imageSub.product.id.eq(product.id));
+    @Override
+    public Optional<Product> findProductByIdWithImage(Long productId) {
+        return Optional.ofNullable(jpaQueryFactory.selectFrom(product)
+                .leftJoin(product.images, image)
+                .fetchJoin()
+                .where(product.id.eq(productId))
+                .fetchOne());
     }
 
-//
-//    private JPQLQuery<Long> getLikeCount() {
-//        return JPAExpressions.select(like.count())
-//                .from(like)
-//                .where(like.product.eq(product));
-//    }
+    private JPQLQuery<Long> getFirstImageId() {
+        QImage imageSub = new QImage("imageSub");
+        return JPAExpressions.select(imageSub.id)
+                .from(imageSub)
+                .where(imageSub.product.id.eq(product.id)
+                        , imageSub.sequence.eq(Expressions.asNumber(1)));
+    }
 
     /**
      * 사용자가 특정 상품을 좋아요(Like)했는지 여부를 확인합니다.
