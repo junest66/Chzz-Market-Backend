@@ -1,5 +1,8 @@
 package org.chzz.market.domain.product.entity;
 
+import static org.chzz.market.domain.image.error.ImageErrorCode.MAX_IMAGE_COUNT_EXCEEDED;
+import static org.chzz.market.domain.image.error.ImageErrorCode.NO_IMAGES_PROVIDED;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -23,6 +26,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.chzz.market.domain.base.entity.BaseTimeEntity;
 import org.chzz.market.domain.image.entity.Image;
+import org.chzz.market.domain.image.error.exception.ImageException;
 import org.chzz.market.domain.like.entity.Like;
 import org.chzz.market.domain.product.dto.UpdateProductRequest;
 import org.chzz.market.domain.product.error.ProductErrorCode;
@@ -69,7 +73,7 @@ public class Product extends BaseTimeEntity {
     private List<Like> likes = new ArrayList<>();
 
     @Builder.Default
-    @OneToMany(mappedBy = "product", cascade = CascadeType.REMOVE)
+    @OneToMany(mappedBy = "product", cascade = {CascadeType.REMOVE, CascadeType.PERSIST}, orphanRemoval = true)
     private List<Image> images = new ArrayList<>();
 
     @Getter
@@ -102,7 +106,6 @@ public class Product extends BaseTimeEntity {
         likes.remove(like);
     }
 
-
     public void update(UpdateProductRequest modifiedProduct) {
         this.name = modifiedProduct.getProductName();
         this.description = modifiedProduct.getDescription();
@@ -114,11 +117,23 @@ public class Product extends BaseTimeEntity {
         return this.user.getId().equals(userId);
     }
 
-
     public void addImages(List<Image> images) {
-        this.images.addAll(images);
+        images.forEach(this::addImage);
     }
 
+    public void removeImages(List<Image> images) {
+        images.forEach(this::removeImage);
+    }
+
+    private void addImage(Image image) {
+        images.add(image);
+        image.specifyProduct(this);
+    }
+
+    private void removeImage(Image image) {
+        images.remove(image);
+        image.specifyProduct(null);
+    }
 
     public Image getFirstImage() {
         return images.stream()
@@ -132,6 +147,15 @@ public class Product extends BaseTimeEntity {
                 .map(like -> like.getUser().getId())
                 .distinct()
                 .toList();
+    }
+
+    public void validateImageSize() {
+        long count = this.images.size();
+        if (count < 1) {
+            throw new ImageException(NO_IMAGES_PROVIDED);
+        } else if (count > 5) {
+            throw new ImageException(MAX_IMAGE_COUNT_EXCEEDED);
+        }
     }
 
 }

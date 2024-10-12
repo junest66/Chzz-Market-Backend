@@ -8,10 +8,12 @@ import static org.chzz.market.domain.product.error.ProductErrorCode.FORBIDDEN_PR
 import static org.chzz.market.domain.product.error.ProductErrorCode.PRODUCT_ALREADY_AUCTIONED;
 import static org.chzz.market.domain.product.error.ProductErrorCode.PRODUCT_NOT_FOUND;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.chzz.market.domain.auction.repository.AuctionRepository;
@@ -173,28 +175,22 @@ public class ProductService {
      */
     private void updateProductImages(Product product,
                                      UpdateProductRequest request,
-                                     Map<String, MultipartFile> newImages) {
+                                     Map<String, MultipartFile> images) {
+        Map<String, MultipartFile> newImages = removeRequestKey(images);
+        Map<Long, Integer> imageSequence = Optional.ofNullable(request.getImageSequence())
+                .orElse(Collections.emptyMap());
 
-        // 총 이미지 수 검증
-        int sequenceSize = request.getImageSequence() != null ? request.getImageSequence().size() : 0;
-        int newImageSize = newImages != null ? newImages.size() : 0;
-        int totalSize = sequenceSize + newImageSize;
+        // 요청에 대한 총 이미지 수 검증
+        validateTotalImageCount(imageSequence.size() + newImages.size());
 
-        if (totalSize > 5) {
-            throw new ProductException(MAX_IMAGE_COUNT_EXCEEDED);
-        } else if (totalSize == 0) {
-            throw new ProductException(INVALID_IMAGE_COUNT);
+        // 기존 이미지 처리 (업데이트할 이미지와 삭제할 이미지 구분)
+        processExistingImages(product, imageSequence);
+
+        // 새 이미지가 있는 경우
+        if (!newImages.isEmpty()) {
+            uploadAndAddNewImages(product, newImages);
         }
-
-        //imageSequence에 없는 ID에 해당하는 이미지 삭제 후 시퀀스 update
-        imageService.updateExistingImages(product, request);
-
-        if (!Objects.requireNonNull(newImages).isEmpty()) {// 새 이미지가 온 경우
-            List<Image> newImageEntities = imageService.uploadSequentialImages(newImages);
-            product.addImages(newImageEntities);
-            log.info("상품 ID {}번의 새 이미지를 성공적으로 저장하였습니다.", product.getId());
-        }
-        imageService.validateImageSize(product.getId());
+        product.validateImageSize();
     }
 
     /**
@@ -207,5 +203,53 @@ public class ProductService {
 
         imageService.deleteUploadImages(imageUrls);
         log.info("상품 ID {}번에 해당하는 상품의 이미지를 모두 삭제하였습니다.", product.getId());
+    }
+
+    /**
+     * 새로운 이미지 맵에서 "request" 키를 제거하고, null 값을 처리 (@RequestPart 사용으로 인한)
+     */
+    private Map<String, MultipartFile> removeRequestKey(Map<String, MultipartFile> newImages) {
+        if (newImages != null) {
+            newImages.remove("request");
+        }
+        return newImages != null ? newImages : Collections.emptyMap();
+    }
+
+    /**
+     * 총 이미지 수(기존 이미지 갯수 + 새롭게 업로드할 이미지 갯수) 가 유효한지 검증합니다.
+     */
+    private void validateTotalImageCount(int totalSize) {
+        if (totalSize > 5) {
+            throw new ProductException(MAX_IMAGE_COUNT_EXCEEDED);
+        } else if (totalSize == 0) {
+            throw new ProductException(INVALID_IMAGE_COUNT);
+        }
+    }
+
+    /**
+     * 기존 이미지 업데이트 및 삭제 처리
+     */
+    private void processExistingImages(Product product, Map<Long, Integer> imageSequence) {
+        List<Image> imagesToUpdate = new ArrayList<>();
+        List<Image> imagesToRemove = new ArrayList<>();
+
+        product.getImages().forEach(image -> {
+            if (imageSequence.containsKey(image.getId())) {
+                imagesToUpdate.add(image); // 업데이트할 이미지
+            } else {
+                imagesToRemove.add(image); // 삭제할 이미지
+            }
+        });
+        product.removeImages(imagesToRemove); // 삭제할 이미지 처리
+        imageService.updateImageSequences(imagesToUpdate, imageSequence); // 시퀀스 업데이트할 이미지 처리
+    }
+
+    /**
+     * 상품 수정 시 새로운 이미지 업로드
+     */
+    private void uploadAndAddNewImages(Product product, Map<String, MultipartFile> newImages) {
+        List<Image> newImageEntities = imageService.uploadSequentialImages(product, newImages);
+        product.addImages(newImageEntities);
+        log.info("상품 ID {}번의 새 이미지를 성공적으로 저장하였습니다.", product.getId());
     }
 }

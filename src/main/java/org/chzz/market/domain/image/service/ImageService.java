@@ -2,9 +2,6 @@ package org.chzz.market.domain.image.service;
 
 import static org.chzz.market.domain.image.error.ImageErrorCode.IMAGE_DELETE_FAILED;
 import static org.chzz.market.domain.image.error.ImageErrorCode.INVALID_IMAGE_EXTENSION;
-import static org.chzz.market.domain.image.error.ImageErrorCode.MAX_IMAGE_COUNT_EXCEEDED;
-import static org.chzz.market.domain.image.error.ImageErrorCode.NOT_FOUND;
-import static org.chzz.market.domain.image.error.ImageErrorCode.NO_IMAGES_PROVIDED;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3;
@@ -14,7 +11,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.chzz.market.domain.image.entity.Image;
 import org.chzz.market.domain.image.error.exception.ImageException;
 import org.chzz.market.domain.image.repository.ImageRepository;
-import org.chzz.market.domain.product.dto.UpdateProductRequest;
 import org.chzz.market.domain.product.entity.Product;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -57,19 +52,6 @@ public class ImageService {
     }
 
     /**
-     * 이미지 갯수의 범위 확인
-     */
-    public void validateImageSize(Long productId) {
-        long count = imageRepository.countByProductId(productId);
-        // 삭제 연산 이후 갯수 확인
-        if (count < 1) {
-            throw new ImageException(NO_IMAGES_PROVIDED);
-        } else if (count > 5) {
-            throw new ImageException(MAX_IMAGE_COUNT_EXCEEDED);
-        }
-    }
-
-    /**
      * 단일 이미지 파일 업로드 및 CDN 전체경로 리스트 반환
      */
     //@Transactional(propagation = Propagation.NOT_SUPPORTED)// 써야하려나? 아니면 이벤트기반?
@@ -83,21 +65,21 @@ public class ImageService {
      * 상품에 대한 이미지 Entity 생성 및 저장
      */
     @Transactional
-    public List<Image> saveProductImageEntities(Product product, List<String> cdnPaths) {
+    public List<Image> saveProductImageEntities(List<String> cdnPaths) {
         List<Image> images = IntStream.range(0, cdnPaths.size())
                 .mapToObj(i -> Image.builder()
                         .cdnPath(cdnPaths.get(i))
-                        .product(product)
                         .sequence((i + 1))
                         .build())
                 .toList();
-
-        imageRepository.saveAll(images);
         return images;
     }
 
+    /**
+     * 상품 수정 시 새로운 이미지 생성 및 저장
+     */
     @Transactional
-    public List<Image> uploadSequentialImages(Map<String, MultipartFile> newImages) {
+    public List<Image> uploadSequentialImages(Product product, Map<String, MultipartFile> newImages) {
         List<Image> images = newImages.entrySet().stream()
                 .map(entry -> {
                     int sequence = Integer.parseInt(entry.getKey());
@@ -106,6 +88,7 @@ public class ImageService {
                     return Image.builder()
                             .sequence(sequence)
                             .cdnPath(cdnPath)
+                            .product(product)
                             .build();
                 }).toList();
         imageRepository.saveAll(images);
@@ -113,32 +96,17 @@ public class ImageService {
     }
 
     /**
-     * @param productId 상품 ID
-     * @param imageIds  남아있을 이미지 ID
+     * 기존 이미지의 시퀀스를 업데이트하는 메서드
      */
     @Transactional
-    public void deleteImagesNotContainsIdsOf(Long productId, Set<Long> imageIds) {
-        imageRepository.deleteImagesNotContainsIdsOf(productId, imageIds);
-    }
-
-    /**
-     * 시퀀스 업데이트
-     */
-    @Transactional
-    public void updateSequence(Map<Long, Integer> imageSequence) {
-        imageSequence.forEach((imageId, sequence) -> {
-            Image image = imageRepository.findById(imageId)
-                    .orElseThrow(() -> new ImageException(NOT_FOUND));
-            image.setSequence(sequence);
+    public void updateImageSequences(List<Image> imagesToUpdate, Map<Long, Integer> imageSequence) {
+        imagesToUpdate.forEach(image -> {
+            Long imageId = image.getId();
+            Integer newSequence = imageSequence.get(imageId);
+            if (newSequence != null) {
+                image.changeSequence(newSequence); // 이미지의 시퀀스 업데이트
+            }
         });
-    }
-
-    /**
-     * 기존 이미지중 제거할 이미지 삭제 후 시퀀스 수정
-     */
-    public void updateExistingImages(Product product, UpdateProductRequest request) {
-        deleteImagesNotContainsIdsOf(product.getId(), request.getImageSequence().keySet());//제거될 id들을 받아서 삭제
-        updateSequence(request.getImageSequence());// 남아있는 시퀀스 매김
     }
 
     /**
