@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.chzz.market.common.error.handler.CustomAccessDeniedHandler;
 import org.chzz.market.common.error.handler.CustomAuthenticationEntryPoint;
 import org.chzz.market.common.error.handler.ExceptionHandlingFilter;
+import org.chzz.market.common.filter.HttpCookieOAuth2AuthorizationRequestRepository;
 import org.chzz.market.common.filter.JWTFilter;
 import org.chzz.market.common.filter.NotFoundFilter;
 import org.chzz.market.common.util.JWTUtil;
@@ -48,6 +49,7 @@ public class SecurityConfig {
     private final JWTUtil jwtUtil;
     private final ObjectMapper objectMapper;
     private final List<HandlerMapping> handlerMappings;
+    private final HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository;
 
     @Bean
     public SecurityFilterChain filterChain(final HttpSecurity http) throws Exception {
@@ -86,6 +88,7 @@ public class SecurityConfig {
                         )
                         .successHandler(customSuccessHandler)
                         .failureHandler(customFailureHandler)
+                        .authorizedClientRepository(httpCookieOAuth2AuthorizationRequestRepository)
                 )
                 .addFilterBefore(new JWTFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(new NotFoundFilter(handlerMappings), JWTFilter.class)
