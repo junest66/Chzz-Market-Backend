@@ -11,7 +11,7 @@ on:
 
 jobs:
   validate-title-and-branch:
-    if: ${{ !(startsWith(github.head_ref, 'release/') && github.base_ref == 'develop')}} # release/* -> develop일 때는 실행하지 않음
+    if: ${{ !( (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/')) && github.base_ref == 'develop') }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out code

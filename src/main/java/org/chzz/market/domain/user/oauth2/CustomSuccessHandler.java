@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.chzz.market.common.filter.HttpCookieOAuth2AuthorizationRequestRepository;
 import org.chzz.market.domain.token.entity.TokenType;
 import org.chzz.market.domain.token.service.TokenService;
 import org.chzz.market.domain.user.dto.CustomUserDetails;
@@ -28,10 +29,12 @@ public class CustomSuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
 
     private final TokenService tokenService;
+    private final HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException {
+        authorizationRequestRepository.removeAuthorizationRequestCookies(response);
         User user = ((CustomUserDetails) authentication.getPrincipal()).getUser();
         if (user.isTempUser()) {
             // 임시 토큰 발급
