@@ -86,9 +86,11 @@ public class SecurityConfig {
                         .userInfoEndpoint(userInfoEndpointConfig -> userInfoEndpointConfig
                                 .userService(customOAuth2UserService)
                         )
+                        .authorizationEndpoint(authorization -> authorization
+                                .authorizationRequestRepository(httpCookieOAuth2AuthorizationRequestRepository)
+                        )
                         .successHandler(customSuccessHandler)
                         .failureHandler(customFailureHandler)
-                        .authorizedClientRepository(httpCookieOAuth2AuthorizationRequestRepository)
                 )
                 .addFilterBefore(new JWTFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(new NotFoundFilter(handlerMappings), JWTFilter.class)
