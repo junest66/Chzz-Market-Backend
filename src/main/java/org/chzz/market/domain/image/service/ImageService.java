@@ -9,8 +9,10 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.chzz.market.domain.image.entity.Image;
@@ -26,11 +28,11 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ImageService {
     private final ImageUploader imageUploader;
     private final ImageRepository imageRepository;
     private final AmazonS3 amazonS3Client;
-    private final S3ImageUploader s3ImageUploader;
 
     @Value("${cloud.aws.cloudfront.domain}")
     private String cloudfrontDomain;
@@ -41,7 +43,7 @@ public class ImageService {
     /**
      * 여러 이미지 파일 업로드 및 CDN 경로 리스트 반환
      */
-    public List<String> uploadImages(List<MultipartFile> images) {
+    public List<String> uploadImages(List<MultipartFile> images) {//TODO 2024 10 07 23:18:22 : 이미지 벌크 업로드 방법 강구
         List<String> uploadedUrls = images.stream()
                 .map(this::uploadImage)
                 .toList();
@@ -52,6 +54,7 @@ public class ImageService {
     /**
      * 단일 이미지 파일 업로드 및 CDN 전체경로 리스트 반환
      */
+    //@Transactional(propagation = Propagation.NOT_SUPPORTED)// 써야하려나? 아니면 이벤트기반?
     public String uploadImage(MultipartFile image) {
         String uniqueFileName = createUniqueFileName(Objects.requireNonNull(image.getOriginalFilename()));
         String s3Key = imageUploader.uploadImage(image, uniqueFileName);
@@ -62,16 +65,48 @@ public class ImageService {
      * 상품에 대한 이미지 Entity 생성 및 저장
      */
     @Transactional
-    public List<Image> saveProductImageEntities(Product product, List<String> cdnPaths) {
-        List<Image> images = cdnPaths.stream()
-                .map(cdnPath -> Image.builder()
-                        .cdnPath(cdnPath)
-                        .product(product)
+    public List<Image> saveProductImageEntities(List<String> cdnPaths) {
+        List<Image> images = IntStream.range(0, cdnPaths.size())
+                .mapToObj(i -> Image.builder()
+                        .cdnPath(cdnPaths.get(i))
+                        .sequence((i + 1))
                         .build())
                 .toList();
-        imageRepository.saveAll(images);
-
         return images;
+    }
+
+    /**
+     * 상품 수정 시 새로운 이미지 생성 및 저장
+     */
+    @Transactional
+    public List<Image> uploadSequentialImages(Product product, Map<String, MultipartFile> newImages) {
+        List<Image> images = newImages.entrySet().stream()
+                .map(entry -> {
+                    int sequence = Integer.parseInt(entry.getKey());
+                    MultipartFile multipartFile = entry.getValue();
+                    String cdnPath = uploadImage(multipartFile);
+                    return Image.builder()
+                            .sequence(sequence)
+                            .cdnPath(cdnPath)
+                            .product(product)
+                            .build();
+                }).toList();
+        imageRepository.saveAll(images);
+        return images;
+    }
+
+    /**
+     * 기존 이미지의 시퀀스를 업데이트하는 메서드
+     */
+    @Transactional
+    public void updateImageSequences(List<Image> imagesToUpdate, Map<Long, Integer> imageSequence) {
+        imagesToUpdate.forEach(image -> {
+            Long imageId = image.getId();
+            Integer newSequence = imageSequence.get(imageId);
+            if (newSequence != null) {
+                image.changeSequence(newSequence); // 이미지의 시퀀스 업데이트
+            }
+        });
     }
 
     /**
