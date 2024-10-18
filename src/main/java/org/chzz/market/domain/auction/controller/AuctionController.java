@@ -75,14 +75,6 @@ public class AuctionController {
     }
 
     /**
-     * 경매 입찰 내역 조회
-     */
-    @GetMapping("/history")
-    public ResponseEntity<?> getAuctionHistory(@LoginUser Long userId, Pageable pageable) {
-        return ResponseEntity.ok(auctionService.getAuctionHistory(userId, pageable));
-    }
-
-    /**
      * 내가 성공한 경매 조회
      */
     @GetMapping("/won")
@@ -194,8 +186,8 @@ public class AuctionController {
      */
     @PostMapping("/test")
     public ResponseEntity<?> testEndAuction(@LoginUser Long userId,
-                                            @RequestParam("minutes") int minutes) {
-        testService.test(userId, minutes);
+                                            @RequestParam("seconds") int seconds) {
+        testService.test(userId, seconds);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 }

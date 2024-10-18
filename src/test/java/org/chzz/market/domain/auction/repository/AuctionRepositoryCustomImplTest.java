@@ -25,6 +25,7 @@ import org.chzz.market.domain.auction.entity.Auction;
 import org.chzz.market.domain.bid.entity.Bid;
 import org.chzz.market.domain.bid.entity.Bid.BidStatus;
 import org.chzz.market.domain.bid.repository.BidRepository;
+import org.chzz.market.domain.image.dto.ImageResponse;
 import org.chzz.market.domain.image.entity.Image;
 import org.chzz.market.domain.image.repository.ImageRepository;
 import org.chzz.market.domain.payment.dto.response.TossPaymentResponse;
@@ -56,12 +57,12 @@ class AuctionRepositoryCustomImplTest {
     @Autowired
     AuctionRepository auctionRepository;
 
-    private static User user1, user2, user3, user4;
-    private static Product product1, product2, product3, product4, product5, product6, product7, product8, product9;
-    private static Auction auction1, auction2, auction3, auction4, auction5, auction6, auction7, auction8, auction9;
+    private static User user1, user2, user3, user4, user5;
+    private static Product product1, product2, product3, product4, product5, product6, product7, product8, product9, product10;
+    private static Auction auction1, auction2, auction3, auction4, auction5, auction6, auction7, auction8, auction9, auction10;
 
     private static Image image1, image2, image3, image4, image5, image6;
-    private static Bid bid1, bid2, bid3, bid4, bid5, bid6, bid7, bid8, bid9, bid10, bid11, bid12, bid13, bid14;
+    private static Bid bid1, bid2, bid3, bid4, bid5, bid6, bid7, bid8, bid9, bid10, bid11, bid12, bid13, bid14, bid15;
 
     @BeforeAll
     static void setUpOnce(@Autowired UserRepository userRepository,
@@ -74,7 +75,8 @@ class AuctionRepositoryCustomImplTest {
         user2 = User.builder().providerId("12345").nickname("닉네임2").email("asd1@naver.com").build();
         user3 = User.builder().providerId("123456").nickname("닉네임3").email("asd12@naver.com").build();
         user4 = User.builder().providerId("1234567").nickname("닉네임4").email("asd123@naver.com").build();
-        userRepository.saveAll(List.of(user1, user2, user3, user4));
+        user5 = User.builder().providerId("12345678").nickname("닉네임5").email("asd1234@naver.com").build();
+        userRepository.saveAll(List.of(user1, user2, user3, user4, user5));
 
         product1 = Product.builder().user(user1).name("제품1").category(Category.FASHION_AND_CLOTHING).minPrice(10000)
                 .build();
@@ -92,10 +94,14 @@ class AuctionRepositoryCustomImplTest {
                 .build();
         product8 = Product.builder().user(user2).name("제품8").category(Category.OTHER).minPrice(75000)
                 .build();
-        product9 = Product.builder().user(user2).name("제품9").category(Category.OTHER).minPrice(80000).build();
+        product9 = Product.builder().user(user3).name("제품9").category(Category.OTHER).minPrice(75000)
+                .build();
+        product10 = Product.builder().user(user2).name("제품9").category(Category.OTHER).minPrice(80000)
+                .build();
 
         productRepository.saveAll(
-                List.of(product1, product2, product3, product4, product5, product6, product7, product8, product9));
+                List.of(product1, product2, product3, product4, product5, product6, product7, product8, product9,
+                        product10));
 
         auction1 = Auction.builder().product(product1).status(PROCEEDING)
                 .endDateTime(LocalDateTime.now().plusDays(1)).build();
@@ -113,14 +119,16 @@ class AuctionRepositoryCustomImplTest {
                 .endDateTime(LocalDateTime.now().plusSeconds(700)).build();
         auction8 = Auction.builder().product(product8).status(ENDED).winnerId(user4.getId())
                 .endDateTime(LocalDateTime.now().minusDays(1)).build();
+        auction9 = Auction.builder().product(product9).status(PROCEEDING).winnerId(null)
+                .endDateTime(LocalDateTime.now().plusDays(1)).build();
         // auction9 생성 (종료되었지만 낙찰자가 없는 경매)
-        auction9 = Auction.builder()
-                .product(product9)
+        auction10 = Auction.builder()
+                .product(product10)
                 .status(ENDED)
                 .endDateTime(LocalDateTime.now().minusDays(1))
                 .build();
         auctionRepository.saveAll(
-                List.of(auction1, auction2, auction3, auction4, auction5, auction6, auction7, auction8, auction9));
+                List.of(auction1, auction2, auction3, auction4, auction5, auction6, auction7, auction8, auction9, auction10));
 
         // auction8에 대한 결제 데이터 추가 (결제 완료된 경매)
         TossPaymentResponse tossPaymentResponse = new TossPaymentResponse();
@@ -139,21 +147,20 @@ class AuctionRepositoryCustomImplTest {
         image6 = Image.builder().product(product8).cdnPath("path/to/image5.jpg").sequence(1).build();
         imageRepository.saveAll(List.of(image1, image2, image3, image4, image5, image6));
 
-        bid1 = Bid.builder().bidder(user2).auction(auction1).status(BidStatus.ACTIVE).amount(2000L).build();
-        bid2 = Bid.builder().bidder(user2).auction(auction2).status(BidStatus.ACTIVE).amount(4000L).build();
-        bid3 = Bid.builder().bidder(user1).auction(auction3).status(BidStatus.CANCELLED).amount(5000L).build();
-        bid4 = Bid.builder().bidder(user3).auction(auction2).status(BidStatus.ACTIVE).amount(6000L).build();
-        bid5 = Bid.builder().bidder(user1).auction(auction5).status(BidStatus.ACTIVE).amount(7000L).build();
-        bid6 = Bid.builder().bidder(user2).auction(auction6).status(BidStatus.ACTIVE).amount(8000L).build();
-        bid7 = Bid.builder().bidder(user3).auction(auction3).status(BidStatus.CANCELLED).amount(310000L).build();
-        bid8 = Bid.builder().bidder(user4).auction(auction3).status(BidStatus.CANCELLED).amount(320000L).build();
-        bid10 = Bid.builder().bidder(user2).auction(auction3).status(BidStatus.ACTIVE).amount(8000L).build();
-        bid11 = Bid.builder().bidder(user2).auction(auction4).status(BidStatus.ACTIVE).amount(15000L).build();
-        bid12 = Bid.builder().bidder(user3).auction(auction4).status(BidStatus.ACTIVE).amount(25000L).build();
-        bid13 = Bid.builder().bidder(user4).auction(auction8).status(BidStatus.ACTIVE).amount(250000L).build();
-        bid14 = Bid.builder().bidder(user2).auction(auction8).status(BidStatus.ACTIVE).amount(150000L).build();
-        bidRepository.saveAll(List.of(bid1, bid2, bid3, bid4, bid5, bid6, bid7, bid8, bid10, bid11, bid12, bid13,
-                bid14));
+        bid1 = Bid.builder().bidder(user2).auction(auction1).amount(2000L).build();
+        bid2 = Bid.builder().bidder(user2).auction(auction2).amount(4000L).build();
+        bid3 = Bid.builder().bidder(user1).auction(auction3).amount(5000L).build();
+        bid4 = Bid.builder().bidder(user3).auction(auction2).amount(6000L).build();
+        bid5 = Bid.builder().bidder(user1).auction(auction5).amount(7000L).build();
+        bid6 = Bid.builder().bidder(user2).auction(auction6).amount(8000L).build();
+        bid7 = Bid.builder().bidder(user3).auction(auction3).amount(310000L).build();
+        bid8 = Bid.builder().bidder(user4).auction(auction3).amount(320000L).build();
+        bid10 = Bid.builder().bidder(user2).auction(auction3).amount(8000L).build();
+        bid11 = Bid.builder().bidder(user2).auction(auction4).amount(15000L).build();
+        bid12 = Bid.builder().bidder(user3).auction(auction4).amount(25000L).build();
+        bid13 = Bid.builder().bidder(user4).auction(auction8).amount(250000L).build();
+        bid14 = Bid.builder().bidder(user2).auction(auction8).amount(150000L).build();
+        bid15 = Bid.builder().bidder(user5).auction(auction9).amount(75000L).status(BidStatus.ACTIVE).build();
 
         auction1.registerBid(bid1);
         auction2.registerBid(bid2);
@@ -168,6 +175,10 @@ class AuctionRepositoryCustomImplTest {
         auction6.registerBid(bid6);
         auction8.registerBid(bid13);
         auction8.registerBid(bid14);
+        auction9.registerBid(bid15);
+        auction9.removeBid(bid15);
+        bidRepository.saveAll(List.of(bid1, bid2, bid3, bid4, bid5, bid6, bid7, bid8, bid10, bid11, bid12, bid13,
+                bid14, bid15));
     }
 
     @Test
@@ -184,8 +195,8 @@ class AuctionRepositoryCustomImplTest {
         assertThat(result).isNotNull();
         assertThat(result.getContent()).hasSize(2);
         assertThat(result.getContent().get(0).getProductName()).isEqualTo("제품3");
-        assertThat(result.getContent().get(0).getIsParticipated()).isFalse();
-        assertThat(result.getContent().get(0).getParticipantCount()).isEqualTo(1);
+        assertThat(result.getContent().get(0).getIsParticipated()).isTrue();
+        assertThat(result.getContent().get(0).getParticipantCount()).isEqualTo(4);
         assertThat(result.getContent().get(0).getImageUrl()).isEqualTo("path/to/image3.jpg");
         assertThat(result.getContent().get(1).getProductName()).isEqualTo("제품1");
         assertThat(result.getContent().get(1).getIsParticipated()).isFalse();
@@ -206,15 +217,14 @@ class AuctionRepositoryCustomImplTest {
         //then
         assertThat(result).isNotNull();
         assertThat(result.getContent()).hasSize(2);
-        assertThat(result.getContent().get(0).getProductName()).isEqualTo("제품1");
+        assertThat(result.getContent().get(0).getProductName()).isEqualTo("제품3");
         assertThat(result.getContent().get(0).getIsParticipated()).isTrue();
-        assertThat(result.getContent().get(0).getParticipantCount()).isEqualTo(1);
-        assertThat(result.getContent().get(0).getImageUrl()).isEqualTo("path/to/image1_1.jpg");
-        assertThat(result.getContent().get(1).getProductName()).isEqualTo("제품3");
+        assertThat(result.getContent().get(0).getParticipantCount()).isEqualTo(4);
+        assertThat(result.getContent().get(0).getImageUrl()).isEqualTo("path/to/image3.jpg");
+        assertThat(result.getContent().get(1).getProductName()).isEqualTo("제품1");
         assertThat(result.getContent().get(1).getIsParticipated()).isTrue();
         assertThat(result.getContent().get(1).getParticipantCount()).isEqualTo(1);
-        assertThat(result.getContent().get(1).getImageUrl()).isEqualTo("path/to/image3.jpg");
-
+        assertThat(result.getContent().get(1).getImageUrl()).isEqualTo("path/to/image1_1.jpg");
     }
 
     @Test
@@ -249,7 +259,11 @@ class AuctionRepositoryCustomImplTest {
         assertThat(result.get().getBidAmount()).isEqualTo(0);
         assertThat(result.get().getIsParticipated()).isFalse();
         assertThat(result.get().getBidId()).isNull();
-        assertThat(result.get().getImageUrls()).containsOnly(image1.getCdnPath(), image2.getCdnPath());
+        assertThat(result.get().getImages())
+                .hasSize(2)
+                .extracting(ImageResponse::imageUrl)
+                .containsExactlyInAnyOrder(image1.getCdnPath(), image2.getCdnPath());
+        assertThat(result.get().getIsCancelled()).isFalse();
     }
 
     @Test
@@ -270,6 +284,7 @@ class AuctionRepositoryCustomImplTest {
         assertThat(result.get().getIsParticipated()).isFalse();
         assertThat(result.get().getBidId()).isNull();
         assertThat(result.get().getRemainingBidCount()).isEqualTo(3);
+        assertThat(result.get().getIsCancelled()).isFalse();
     }
 
     @Test
@@ -295,14 +310,18 @@ class AuctionRepositoryCustomImplTest {
         assertThat(response.getBidAmount()).isEqualTo(6000L); // user3의 최신 입찰액
         assertThat(response.getBidId()).isNotNull();
         assertThat(response.getParticipantCount()).isGreaterThanOrEqualTo(2); // 최소 2명 (user2, user3)
-        assertThat(response.getImageUrls()).contains("path/to/image2.jpg");
+        assertThat(result.get().getImages())
+                .hasSize(1)
+                .extracting(ImageResponse::imageUrl)
+                .containsExactlyInAnyOrder(image3.getCdnPath());
+        assertThat(response.getIsCancelled()).isFalse();
     }
 
     @Test
     @DisplayName("경매 상세 조회 - 없는 경매인 경우")
     public void testFindAuctionDetailsById_NonExistentAuction() throws Exception {
         //given
-        Long auctionId = 10L;
+        Long auctionId = 100L;
         Long userId = user1.getId();
 
         //when
@@ -330,6 +349,28 @@ class AuctionRepositoryCustomImplTest {
         assertThat(result.get().getIsParticipated()).isFalse();
         assertThat(result.get().getBidId()).isNull();
         assertThat(result.get().getRemainingBidCount()).isEqualTo(3);
+        assertThat(result.get().getIsCancelled()).isFalse();
+    }
+
+    @Test
+    @DisplayName("경매 상세 조회 - 취소된 입찰이 있는 경우")
+    public void testFindAuctionDetailsById_WithCancelledBid() throws Exception {
+        //given
+        Long auctionId = auction9.getId();
+        Long userId = user5.getId();
+
+        //when
+        Optional<AuctionDetailsResponse> result = auctionRepository.findAuctionDetailsById(auctionId, userId);
+
+        //then
+        assertThat(result).isPresent();
+        AuctionDetailsResponse response = result.get();
+        assertThat(response.getProductId()).isEqualTo(product9.getId());
+        assertThat(response.getIsSeller()).isFalse();
+        assertThat(response.getBidAmount()).isEqualTo(0L);
+        assertThat(response.getIsParticipated()).isFalse();
+        assertThat(response.getBidId()).isNull();
+        assertThat(response.getIsCancelled()).isTrue();
     }
 
     @Test
@@ -363,7 +404,6 @@ class AuctionRepositoryCustomImplTest {
         assertThat(result.getContent()).hasSize(2);
         assertThat(result.getContent().get(0).getCreatedAt()).isBefore(result.getContent().get(1).getCreatedAt());
     }
-
 
     @Test
     @DisplayName("나의 경매 목록 조회했는데 없는 경우")
@@ -404,60 +444,6 @@ class AuctionRepositoryCustomImplTest {
         assertThat(imminentAuctions).isSortedAccordingTo(
                 Comparator.comparing(BaseAuctionDto::getTimeRemaining));
 
-    }
-
-    @Test
-    @DisplayName("내가 참여한 경매 목록 조회 -  가격순")
-    void testFindParticipatingAuctionRecordWithExpensive() {
-        // given
-        Pageable pageable = PageRequest.of(0, 10, Sort.by("expensive"));
-        Page<AuctionResponse> responses = auctionRepository.findParticipatingAuctionRecord(user1.getId(), pageable);
-        // when
-
-        // then
-        assertThat(responses.getContent())
-                .isSortedAccordingTo(Comparator.comparingLong(BaseAuctionDto::getMinPrice).reversed());
-        assertThat(responses.getContent())
-                .allMatch(auctionResponse -> {
-                    Auction auction = auctionRepository.findById(auctionResponse.getAuctionId()).get();
-                    return auction.getStatus().equals(PROCEEDING);
-                });
-    }
-
-    @Test
-    @DisplayName("내가 참여한 경매 목록 조회 -  인기순")
-    void testFindParticipatingAuctionRecordWithPopularity() {
-        // given
-        Pageable pageable = PageRequest.of(0, 10, Sort.by("popularity"));
-        Page<AuctionResponse> responses = auctionRepository.findParticipatingAuctionRecord(user3.getId(), pageable);
-        // when
-        responses.getContent().forEach(System.out::println);
-        // then
-        assertThat(responses.getContent()).isSortedAccordingTo(
-                Comparator.comparingLong(BaseAuctionDto::getParticipantCount).reversed());
-        assertThat(responses.getContent())
-                .allMatch(auctionResponse -> {
-                    Auction auction = auctionRepository.findById(auctionResponse.getAuctionId()).get();
-                    return auction.getStatus().equals(PROCEEDING);
-                });
-    }
-
-    @Test
-    @DisplayName("내가 참여한 경매 목록 조회 -  남은 시간순")
-    void testFindParticipatingAuctionRecordWithTime() {
-        // given
-        Pageable pageable = PageRequest.of(0, 10, Sort.by("newest"));
-        Page<AuctionResponse> responses = auctionRepository.findParticipatingAuctionRecord(user1.getId(), pageable);
-        // when
-
-        // then
-        assertThat(responses.getContent()).isSortedAccordingTo(
-                Comparator.comparingLong(BaseAuctionDto::getTimeRemaining));
-        assertThat(responses.getContent())
-                .allMatch(auctionResponse -> {
-                    Auction auction = auctionRepository.findById(auctionResponse.getAuctionId()).get();
-                    return auction.getStatus().equals(PROCEEDING);
-                });
     }
 
     @Test
@@ -713,7 +699,7 @@ class AuctionRepositoryCustomImplTest {
         assertThat(auction8Response.participantCount()).isEqualTo(2); // bid13, bid14
 
         // auction9 검증 (낙찰자 없음)
-        UserEndedAuctionResponse auction9Response = auctionResponseMap.get(auction9.getId());
+        UserEndedAuctionResponse auction9Response = auctionResponseMap.get(auction10.getId());
         assertNotNull(auction9Response);
         assertThat(auction9Response.productName()).isEqualTo("제품9");
         assertThat(auction9Response.winningBidAmount()).isEqualTo(0L); // 입찰 없음
