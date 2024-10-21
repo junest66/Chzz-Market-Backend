@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/addresses")
 @RequiredArgsConstructor
-public class AddressController {
+public class AddressController implements AddressApi {
     private final AddressService addressService;
 
     /**
@@ -32,11 +32,11 @@ public class AddressController {
      * @param pageable 페이징 정보
      * @return 주소 목록이 담긴 Page 객체
      */
+    @Override
     @GetMapping
     public ResponseEntity<Page<DeliveryResponse>> getAddresses(
             @LoginUser Long userId,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
         return ResponseEntity.ok(addressService.getAddresses(userId, pageable));
     }
 
@@ -47,11 +47,11 @@ public class AddressController {
      * @param deliveryRequest 추가할 주소 정보
      * @return 생성된 주소의 ID
      */
+    @Override
     @PostMapping
     public ResponseEntity<Void> addDelivery(
             @LoginUser Long userId,
-            @Valid @RequestBody DeliveryRequest deliveryRequest
-    ) {
+            @Valid @RequestBody DeliveryRequest deliveryRequest) {
         addressService.addDelivery(userId, deliveryRequest);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
@@ -64,12 +64,12 @@ public class AddressController {
      * @param deliveryRequest 수정할 주소 정보
      * @return 응답 상태
      */
+    @Override
     @PutMapping("/{addressId}")
     public ResponseEntity<Void> updateDelivery(
             @LoginUser Long userId,
             @PathVariable Long addressId,
-            @Valid @RequestBody DeliveryRequest deliveryRequest
-    ) {
+            @Valid @RequestBody DeliveryRequest deliveryRequest) {
         addressService.updateDelivery(userId, addressId, deliveryRequest);
         return ResponseEntity.ok().build();
     }
@@ -81,11 +81,11 @@ public class AddressController {
      * @param addressId 삭제할 주소의 ID
      * @return 응답 상태
      */
+    @Override
     @DeleteMapping("/{addressId}")
     public ResponseEntity<Void> deleteDelivery(
             @LoginUser Long userId,
-            @PathVariable Long addressId
-    ) {
+            @PathVariable Long addressId) {
         addressService.deleteDelivery(userId, addressId);
         return ResponseEntity.noContent().build();
     }
