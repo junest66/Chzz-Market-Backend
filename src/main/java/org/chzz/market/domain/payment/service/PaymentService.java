@@ -13,7 +13,6 @@ import org.chzz.market.domain.payment.dto.request.ApprovalRequest;
 import org.chzz.market.domain.payment.dto.response.ApprovalResponse;
 import org.chzz.market.domain.payment.dto.response.TossPaymentResponse;
 import org.chzz.market.domain.payment.entity.Payment;
-import org.chzz.market.domain.payment.entity.Status;
 import org.chzz.market.domain.payment.error.PaymentErrorCode;
 import org.chzz.market.domain.payment.error.PaymentException;
 import org.chzz.market.domain.payment.repository.PaymentRepository;
@@ -58,14 +57,6 @@ public class PaymentService {
         return ApprovalResponse.of(tossPaymentResponse);
     }
 
-    private void validateDuplicatePayment(Long userId, Long auctionId) {
-        paymentRepository.findByPayerIdAndAuctionId(userId, auctionId)
-                .stream().map(Payment::getStatus)
-                .filter(status -> status.equals(Status.DONE))
-                .findFirst()
-                .orElseThrow(()->new PaymentException(PaymentErrorCode.DUPLICATED_REQUEST));
-    }
-
     @Transactional
     public Payment savePayment(User payer, TossPaymentResponse tossPaymentResponse, Auction auction) {
         Payment payment = Payment.of(payer, tossPaymentResponse, auction);
@@ -104,5 +95,14 @@ public class PaymentService {
     @Recover
     private void throwException() {
         throw new PaymentException(PaymentErrorCode.CREATION_FAILURE);
+    }
+
+    private void validateDuplicatePayment(Long userId, Long auctionId) {
+        paymentRepository.findByPayerIdAndAuctionId(userId, auctionId).stream()
+                .filter(Payment::isPaymentDone)
+                .findFirst()
+                .ifPresent(payment -> {
+                    throw new PaymentException(PaymentErrorCode.DUPLICATED_REQUEST);
+                });
     }
 }
