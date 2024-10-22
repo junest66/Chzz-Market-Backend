@@ -129,7 +129,10 @@ public class AuctionRepositoryCustomImpl implements AuctionRepositoryCustom {
                         activeBid.id,
                         activeBid.amount.coalesce(0L),
                         activeBid.count.coalesce(3),
-                        canceledBid.id.isNotNull()
+                        canceledBid.id.isNotNull(),
+                        winnerIdEq(userId), // 낙찰자 여부
+                        auction.winnerId.isNotNull(), //경매의 낙찰 여부
+                        order.isNotNull() // 주문 여부
                 ))
                 .from(auction)
                 .join(auction.product, product)
@@ -142,6 +145,7 @@ public class AuctionRepositoryCustomImpl implements AuctionRepositoryCustom {
                 .leftJoin(canceledBid).on(canceledBid.auction.id.eq(auctionId)
                         .and(canceledBid.status.eq(CANCELLED)) // CANCELED 상태인 입찰 조인
                         .and(bidderIdEqSub(canceledBid, userId)))
+                .leftJoin(order).on(order.auction.eq(auction))
                 .where(auction.id.eq(auctionId))
                 .fetchOne());
 
@@ -320,7 +324,7 @@ public class AuctionRepositoryCustomImpl implements AuctionRepositoryCustom {
                 ))
                 .leftJoin(image).on(image.product.eq(product).and(isRepresentativeImage()))
                 .leftJoin(order).on(order.auction.id.eq(auction.id))
-                .groupBy(auction.id, product.name, image.cdnPath, product.minPrice, bid.amount)
+                .groupBy(auction.id, product.name, image.cdnPath, product.minPrice, bid.amount, order.id)
                 .orderBy(querydslOrderProvider.getOrderSpecifiers(pageable))
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
@@ -580,6 +584,14 @@ public class AuctionRepositoryCustomImpl implements AuctionRepositoryCustom {
 
     private BooleanBuilder bidderIdEqSub(QBid qBid, Long userId) {
         return nullSafeBuilder(() -> qBid.bidder.id.eq(userId));
+    }
+
+    private BooleanBuilder winnerIdEq(Long userId) {
+        return nullSafeBuilder(() -> auction.winnerId.isNotNull().and(auction.winnerId.eq(userId)));
+    }
+
+    private BooleanBuilder buyerIdEq(Long userId) {
+        return nullSafeBuilder(() -> order.buyerId.eq(userId));
     }
 
     @Getter

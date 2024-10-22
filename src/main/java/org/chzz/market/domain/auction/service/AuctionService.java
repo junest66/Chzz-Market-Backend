@@ -71,6 +71,7 @@ public class AuctionService {
      */
     public AuctionDetailsResponse getFullAuctionDetails(Long auctionId, Long userId) {
         return auctionRepository.findAuctionDetailsById(auctionId, userId)
+                .map(AuctionDetailsResponse::clearOrderIfNotEligible)
                 .orElseThrow(() -> new AuctionException(AUCTION_NOT_FOUND));
     }
 
