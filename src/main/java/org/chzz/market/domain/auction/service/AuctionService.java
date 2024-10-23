@@ -1,7 +1,9 @@
 package org.chzz.market.domain.auction.service;
 
+import static org.chzz.market.common.error.GlobalErrorCode.RESOURCE_NOT_FOUND;
 import static org.chzz.market.domain.auction.error.AuctionErrorCode.AUCTION_ALREADY_REGISTERED;
 import static org.chzz.market.domain.auction.error.AuctionErrorCode.AUCTION_NOT_FOUND;
+import static org.chzz.market.domain.auction.error.AuctionErrorCode.NOT_WINNER;
 import static org.chzz.market.domain.notification.entity.NotificationType.AUCTION_FAILURE;
 import static org.chzz.market.domain.notification.entity.NotificationType.AUCTION_NON_WINNER;
 import static org.chzz.market.domain.notification.entity.NotificationType.AUCTION_START;
@@ -14,6 +16,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.chzz.market.common.error.GlobalException;
 import org.chzz.market.domain.auction.dto.request.StartAuctionRequest;
 import org.chzz.market.domain.auction.dto.response.AuctionDetailsResponse;
 import org.chzz.market.domain.auction.dto.response.AuctionResponse;
@@ -21,6 +24,8 @@ import org.chzz.market.domain.auction.dto.response.LostAuctionResponse;
 import org.chzz.market.domain.auction.dto.response.SimpleAuctionResponse;
 import org.chzz.market.domain.auction.dto.response.StartAuctionResponse;
 import org.chzz.market.domain.auction.dto.response.UserAuctionResponse;
+import org.chzz.market.domain.auction.dto.response.UserEndedAuctionResponse;
+import org.chzz.market.domain.auction.dto.response.WonAuctionDetailsResponse;
 import org.chzz.market.domain.auction.dto.response.WonAuctionResponse;
 import org.chzz.market.domain.auction.entity.Auction;
 import org.chzz.market.domain.auction.error.AuctionException;
@@ -51,14 +56,6 @@ public class AuctionService {
     private final ApplicationEventPublisher eventPublisher;
 
     /**
-     * 경매 ID로 경매 정보를 조회
-     */
-    public Auction getAuction(Long auctionId) {
-        return auctionRepository.findById(auctionId)
-                .orElseThrow(() -> new AuctionException(AUCTION_NOT_FOUND));
-    }
-
-    /**
      * 카테고리에 따라 경매 리스트를 조회
      */
     public Page<AuctionResponse> getAuctionListByCategory(Category category, Long userId,
@@ -74,6 +71,7 @@ public class AuctionService {
      */
     public AuctionDetailsResponse getFullAuctionDetails(Long auctionId, Long userId) {
         return auctionRepository.findAuctionDetailsById(auctionId, userId)
+                .map(AuctionDetailsResponse::clearOrderIfNotEligible)
                 .orElseThrow(() -> new AuctionException(AUCTION_NOT_FOUND));
     }
 
@@ -90,13 +88,6 @@ public class AuctionService {
      */
     public Page<UserAuctionResponse> getAuctionListByNickname(String nickname, Pageable pageable) {
         return auctionRepository.findAuctionsByNickname(nickname, pageable);
-    }
-
-    /**
-     * 사용자가 참여한(입찰한) 경매 상세 정보를 조회
-     */
-    public Page<AuctionResponse> getAuctionHistory(Long userId, Pageable pageable) {
-        return auctionRepository.findParticipatingAuctionRecord(userId, pageable);
     }
 
     /**
@@ -125,7 +116,39 @@ public class AuctionService {
      */
     public List<AuctionResponse> getImminentAuctionList() {
         return auctionRepository.findImminentAuctions();
+    }
 
+    /**
+     * 사용자가 등록한 모든 경매 목록 조회
+     */
+    public Page<UserAuctionResponse> getAuctionListByUserId(Long userId, Pageable pageable) {
+        return auctionRepository.findAuctionsByUserId(userId, pageable);
+    }
+
+    /**
+     * 사용자가 등록한 진행중인 경매 목록 조회
+     */
+    public Page<UserAuctionResponse> getProceedingAuctionListByUserId(Long userId, Pageable pageable) {
+        return auctionRepository.findProceedingAuctionByUserId(userId, pageable);
+    }
+
+    /**
+     * 사용자가 등록한 종료된 경매 목록 조회
+     */
+    public Page<UserEndedAuctionResponse> getEndedAuctionListByUserId(Long userId, Pageable pageable) {
+        return auctionRepository.findEndedAuctionByUserId(userId, pageable);
+    }
+
+    /**
+     * 낙찰 정보 조회
+     */
+    public WonAuctionDetailsResponse getWinningBidByAuctionId(Long userId, Long auctionId) {
+        Auction auction = getAuctionById(auctionId);
+        if (!auction.isWinner(userId)) {
+            throw new AuctionException(NOT_WINNER);
+        }
+        return auctionRepository.findWinningBidById(auctionId)
+                .orElseThrow(() -> new GlobalException(RESOURCE_NOT_FOUND));
     }
 
     /**
@@ -168,9 +191,17 @@ public class AuctionService {
     @Transactional
     public void completeAuction(Long auctionId) {
         log.info("경매 종료 작업 시작 auction ID: {}", auctionId);
-        Auction auction = getAuction(auctionId);
+        Auction auction = getAuctionById(auctionId);
         auction.endAuction();
         processAuctionResults(auction);
+    }
+
+    /**
+     * 경매 ID로 경매 정보를 조회
+     */
+    private Auction getAuctionById(Long auctionId) {
+        return auctionRepository.findById(auctionId)
+                .orElseThrow(() -> new AuctionException(AUCTION_NOT_FOUND));
     }
 
     /**
@@ -241,9 +272,5 @@ public class AuctionService {
             eventPublisher.publishEvent(NotificationEvent.createSimpleNotification(nonWinnerIds, AUCTION_NON_WINNER,
                     AUCTION_NON_WINNER.getMessage(productName), firstImage)); // 미낙찰자 알림 이벤트
         }
-    }
-
-    public Page<UserAuctionResponse> getAuctionListByUserId(Long userId, Pageable pageable) {
-        return auctionRepository.findAuctionsByUserId(userId, pageable);
     }
 }

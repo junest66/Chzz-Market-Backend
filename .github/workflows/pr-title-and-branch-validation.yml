@@ -11,7 +11,7 @@ on:
 
 jobs:
   validate-title-and-branch:
-    if: ${{ !(startsWith(github.head_ref, 'release/') && github.base_ref == 'develop')}} # release/* -> develop일 때는 실행하지 않음
+    if: ${{ !( (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/')) && github.base_ref == 'develop') }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -37,7 +37,7 @@ jobs:
           BRANCH_NAME="${{ github.head_ref }}"
           
           # PR 브랜치 이름 검사
-          if [[ "$BRANCH_NAME" =~ ^(feat|fix|docs|refactor|style|test|chore|design|move)/.+$ ]]; then
+          if [[ "$BRANCH_NAME" =~ ^feat/.+$ ]]; then
             echo "✅ Branch name follows the feature branch convention!"
           elif [[ "$BRANCH_NAME" =~ ^(release|hotfix)/[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "✅ Branch name follows the release or hotfix versioning convention!"

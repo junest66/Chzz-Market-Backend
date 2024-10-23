@@ -56,6 +56,7 @@ public class SecurityConfig {
         return http.authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(ACTUATOR).permitAll()
                         .requestMatchers("/metrics").permitAll()
+                        .requestMatchers("/api-docs", "/swagger-ui/**", "/api/v1/v3/api-docs/**").permitAll()
                         .requestMatchers(GET,
                                 "/api/v1/auctions",
                                 "/api/v1/auctions/{auctionId:\\d+}",
@@ -67,6 +68,7 @@ public class SecurityConfig {
                                 "/api/v1/products/categories",
                                 "/api/v1/products/{productId:\\d+}",
                                 "/api/v1/products/users/*",
+                                "/api/v1/notifications/subscribe",
                                 "/api/v1/users/*",
                                 "/api/v1/users/check/nickname/*").permitAll()
                         .requestMatchers(POST,
