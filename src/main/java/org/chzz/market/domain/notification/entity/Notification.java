@@ -36,13 +36,11 @@ public abstract class Notification extends BaseTimeEntity {
     @Column(name = "notification_id")
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @Column(nullable = false)
+    private Long userId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "image_id")
-    private Image image;
+    @Column
+    private String cdnPath;
 
     @Column(nullable = false)
     private String message;
@@ -56,9 +54,9 @@ public abstract class Notification extends BaseTimeEntity {
     @Column(insertable = false, updatable = false) // jpa 상속구조에서 dype 컬럼을 사용하기 위해
     private String type;
 
-    public Notification(User user, Image image, String message) {
-        this.user = user;
-        this.image = image;
+    public Notification(Long userId, String cdnPath, String message) {
+        this.userId = userId;
+        this.cdnPath = cdnPath;
         this.message = message;
     }
 
@@ -77,5 +75,9 @@ public abstract class Notification extends BaseTimeEntity {
             throw new NotificationException(NotificationErrorCode.DELETED_NOTIFICATION);
         }
         this.isDeleted = true;
+    }
+
+    public boolean isOwner(Long userId) {
+        return this.userId.equals(userId);
     }
 }

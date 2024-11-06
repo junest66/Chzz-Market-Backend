@@ -44,8 +44,10 @@ public class BidRepositoryCustomImpl implements BidRepositoryCustom {
         // 공통된 부분을 baseQuery로 추출
         JPAQuery<?> baseQuery = jpaQueryFactory
                 .from(bid)
-                .join(bid.auction, auction).on(bid.bidder.id.eq(userId).and(bid.status.eq(ACTIVE)
-                        .and(auctionStatusEqIgnoreNull(auctionStatus))));
+                .join(auction).on(bid.auctionId.eq(auction.id)
+                        .and(bid.bidderId.eq(userId))
+                        .and(bid.status.eq(ACTIVE))
+                        .and(auctionStatusEqIgnoreNull(auctionStatus)));
 
         List<BiddingRecord> result = baseQuery
                 .select(new QBiddingRecord(
@@ -75,10 +77,7 @@ public class BidRepositoryCustomImpl implements BidRepositoryCustom {
     public List<Bid> findAllBidsByAuction(Auction auction) {
         return jpaQueryFactory
                 .selectFrom(bid)
-                .leftJoin(bid.bidder).fetchJoin()
-                .where(
-                        bid.auction.eq(auction).and(bid.status.eq(ACTIVE))
-                )
+                .where(bid.auctionId.eq(auction.getId()).and(bid.status.eq(ACTIVE)))
                 .orderBy(bid.amount.desc(), bid.updatedAt.asc())
                 .fetch();
     }
@@ -89,14 +88,17 @@ public class BidRepositoryCustomImpl implements BidRepositoryCustom {
                 .or(auction.winnerId.isNull().and(Expressions.FALSE));
 
         JPAQuery<?> baseQuery = jpaQueryFactory.from(bid)
-                .join(bid.auction, auction).on(auction.id.eq(auctionId).and(bid.status.eq(ACTIVE)));
+                .join(auction).on(bid.auctionId.eq(auction.id)
+                        .and(auction.id.eq(auctionId))
+                        .and(bid.status.eq(ACTIVE)));
 
-        List<BidInfoResponse> content = baseQuery.select(new QBidInfoResponse(
+        List<BidInfoResponse> content = baseQuery
+                .select(new QBidInfoResponse(
                         bid.amount,
                         user.nickname,
                         isWinner
                 ))
-                .join(bid.bidder, user)
+                .join(user).on(bid.bidderId.eq(user.id))
                 .orderBy(querydslOrderProvider.getOrderSpecifiers(pageable))
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
@@ -120,7 +122,7 @@ public class BidRepositoryCustomImpl implements BidRepositoryCustom {
         return JPAExpressions
                 .select(bid.count())
                 .from(bid)
-                .where(bid.auction.id.eq(auction.id).and(bid.status.eq(ACTIVE)));
+                .where(bid.auctionId.eq(auction.id).and(bid.status.eq(ACTIVE)));
     }
 
     private static NumberExpression<Integer> timeRemaining() {

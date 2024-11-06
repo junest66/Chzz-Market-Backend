@@ -15,7 +15,6 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.chzz.market.common.DatabaseTest;
-import org.chzz.market.domain.address.entity.Address;
 import org.chzz.market.domain.auction.dto.BaseAuctionDto;
 import org.chzz.market.domain.auction.dto.response.AuctionDetailsResponse;
 import org.chzz.market.domain.auction.dto.response.AuctionResponse;
@@ -27,6 +26,7 @@ import org.chzz.market.domain.auction.entity.Auction;
 import org.chzz.market.domain.bid.entity.Bid;
 import org.chzz.market.domain.bid.entity.Bid.BidStatus;
 import org.chzz.market.domain.bid.repository.BidRepository;
+import org.chzz.market.domain.delivery.entity.Delivery;
 import org.chzz.market.domain.image.dto.ImageResponse;
 import org.chzz.market.domain.image.entity.Image;
 import org.chzz.market.domain.image.repository.ImageRepository;
@@ -151,40 +151,27 @@ class AuctionRepositoryCustomImplTest {
         image6 = Image.builder().product(product8).cdnPath("path/to/image5.jpg").sequence(1).build();
         imageRepository.saveAll(List.of(image1, image2, image3, image4, image5, image6));
 
-        bid1 = Bid.builder().bidder(user2).auction(auction1).amount(2000L).build();
-        bid2 = Bid.builder().bidder(user2).auction(auction2).amount(4000L).build();
-        bid3 = Bid.builder().bidder(user1).auction(auction3).amount(5000L).build();
-        bid4 = Bid.builder().bidder(user3).auction(auction2).amount(6000L).build();
-        bid5 = Bid.builder().bidder(user1).auction(auction5).amount(7000L).build();
-        bid6 = Bid.builder().bidder(user2).auction(auction6).amount(8000L).build();
-        bid7 = Bid.builder().bidder(user3).auction(auction3).amount(310000L).build();
-        bid8 = Bid.builder().bidder(user4).auction(auction3).amount(320000L).build();
-        bid10 = Bid.builder().bidder(user2).auction(auction3).amount(8000L).build();
-        bid11 = Bid.builder().bidder(user2).auction(auction4).amount(15000L).build();
-        bid12 = Bid.builder().bidder(user3).auction(auction4).amount(25000L).build();
-        bid13 = Bid.builder().bidder(user4).auction(auction8).amount(250000L).build();
-        bid14 = Bid.builder().bidder(user2).auction(auction8).amount(150000L).build();
-        bid15 = Bid.builder().bidder(user5).auction(auction9).amount(75000L).status(BidStatus.ACTIVE).build();
+        bid1 = Bid.builder().bidderId(user2.getId()).auctionId(auction1.getId()).amount(2000L).build();
+        bid2 = Bid.builder().bidderId(user2.getId()).auctionId(auction2.getId()).amount(4000L).build();
+        bid3 = Bid.builder().bidderId(user1.getId()).auctionId(auction3.getId()).amount(5000L).build();
+        bid4 = Bid.builder().bidderId(user3.getId()).auctionId(auction2.getId()).amount(6000L).build();
+        bid5 = Bid.builder().bidderId(user1.getId()).auctionId(auction5.getId()).amount(7000L).build();
+        bid6 = Bid.builder().bidderId(user2.getId()).auctionId(auction6.getId()).amount(8000L).build();
+        bid7 = Bid.builder().bidderId(user3.getId()).auctionId(auction3.getId()).amount(310000L).build();
+        bid8 = Bid.builder().bidderId(user4.getId()).auctionId(auction3.getId()).amount(320000L).build();
+        bid10 = Bid.builder().bidderId(user2.getId()).auctionId(auction3.getId()).amount(8000L).build();
+        bid11 = Bid.builder().bidderId(user2.getId()).auctionId(auction4.getId()).amount(15000L).build();
+        bid12 = Bid.builder().bidderId(user3.getId()).auctionId(auction4.getId()).amount(25000L).build();
+        bid13 = Bid.builder().bidderId(user4.getId()).auctionId(auction8.getId()).amount(250000L).build();
+        bid14 = Bid.builder().bidderId(user2.getId()).auctionId(auction8.getId()).amount(150000L).build();
+        bid15 = Bid.builder().bidderId(user5.getId()).auctionId(auction9.getId()).amount(75000L)
+                .status(BidStatus.ACTIVE).build();
 
-        auction1.registerBid(bid1);
-        auction2.registerBid(bid2);
-        auction2.registerBid(bid4);
-        auction3.registerBid(bid3);
-        auction3.registerBid(bid7);
-        auction3.registerBid(bid8);
-        auction3.registerBid(bid10);
-        auction4.registerBid(bid11);
-        auction4.registerBid(bid12);
-        auction5.registerBid(bid5);
-        auction6.registerBid(bid6);
-        auction8.registerBid(bid13);
-        auction8.registerBid(bid14);
-        auction9.registerBid(bid15);
-        auction9.removeBid(bid15);
+        bid15.cancelBid();
         bidRepository.saveAll(List.of(bid1, bid2, bid3, bid4, bid5, bid6, bid7, bid8, bid10, bid11, bid12, bid13,
                 bid14, bid15));
 
-        Address address = Address.builder()
+        Delivery delivery = Delivery.builder()
                 .roadAddress("서울시 강남구")
                 .jibun("12345")
                 .zipcode("06000")
@@ -193,7 +180,7 @@ class AuctionRepositoryCustomImplTest {
                 .phoneNumber("010-1234-5678")
                 .build();
 
-        order1 = Order.of(4L, payment1, address, "부재시 경비실에 맡겨주세요.");
+        order1 = Order.of(4L, payment1, delivery, "부재시 경비실에 맡겨주세요.");
         orderRepository.save(order1);
     }
 
@@ -659,28 +646,28 @@ class AuctionRepositoryCustomImplTest {
                     List.of(ongoingAuction1, ongoingAuction2, failedAuction1, failedAuction2, successedAuction));
 
             Bid bid1 = Bid.builder()
-                    .bidder(user)
-                    .auction(successedAuction)
+                    .bidderId(user.getId())
+                    .auctionId(successedAuction.getId())
                     .amount(10000L)
                     .build();
             Bid bid2 = Bid.builder()
-                    .bidder(user)
-                    .auction(failedAuction1)
+                    .bidderId(user.getId())
+                    .auctionId(failedAuction1.getId())
                     .amount(10000L)
                     .build();
             Bid bid3 = Bid.builder()
-                    .bidder(user)
-                    .auction(failedAuction2)
+                    .bidderId(user.getId())
+                    .auctionId(failedAuction2.getId())
                     .amount(10000L)
                     .build();
             Bid bid4 = Bid.builder()
-                    .bidder(user)
-                    .auction(ongoingAuction1)
+                    .bidderId(user.getId())
+                    .auctionId(ongoingAuction1.getId())
                     .amount(1000L)
                     .build();
             Bid bid5 = Bid.builder()
-                    .bidder(user)
-                    .auction(ongoingAuction2)
+                    .bidderId(user.getId())
+                    .auctionId(ongoingAuction2.getId())
                     .amount(1000L)
                     .build();
 
