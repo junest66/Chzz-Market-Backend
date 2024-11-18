@@ -2,11 +2,11 @@ package org.chzz.market.domain.auctionv2.entity;
 
 import static org.chzz.market.domain.auctionv2.error.AuctionErrorCode.AUCTION_ACCESS_FORBIDDEN;
 import static org.chzz.market.domain.auctionv2.error.AuctionErrorCode.AUCTION_ALREADY_OFFICIAL;
+import static org.chzz.market.domain.auctionv2.error.AuctionErrorCode.AUCTION_NOT_ENDED;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -26,7 +26,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.chzz.market.domain.auction.entity.listener.AuctionEntityListener;
 import org.chzz.market.domain.auctionv2.error.AuctionException;
 import org.chzz.market.domain.base.entity.BaseTimeEntity;
 import org.chzz.market.domain.image.entity.ImageV2;
@@ -38,11 +37,11 @@ import org.hibernate.annotations.DynamicUpdate;
 // TODO: V2 경매 API 전환이 끝나서 운영 환경에 적용할 땐 기존 테이블에서 데이터를 이관해야 합니다.(flyway 스크립트)
 @Table(name = "auction_v2")
 @Entity
-@EntityListeners(value = AuctionEntityListener.class)
+//@EntityListeners(value = AuctionEntityListener.class)
+@AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @DynamicUpdate
-@AllArgsConstructor
 @Getter
 @Slf4j
 public class AuctionV2 extends BaseTimeEntity {
@@ -78,15 +77,22 @@ public class AuctionV2 extends BaseTimeEntity {
     @Column
     private Long winnerId;
 
+    @Builder.Default
     @Column
-    private Integer likeCount;
+    private Integer likeCount = 0;
 
+    @Builder.Default
     @Column
-    private Integer bidCount;
+    private Integer bidCount = 0;
 
     @Builder.Default
     @OneToMany(mappedBy = "auction", cascade = {CascadeType.REMOVE, CascadeType.PERSIST}, orphanRemoval = true)
     private List<ImageV2> images = new ArrayList<>();
+
+    public void addImage(ImageV2 image) {
+        images.add(image);
+        image.specifyAuction(this);
+    }
 
     public boolean isOwner(Long userId) {
         return seller.getId().equals(userId);
@@ -104,6 +110,16 @@ public class AuctionV2 extends BaseTimeEntity {
 
     public boolean isOfficialAuction() {
         return status == AuctionStatus.PROCEEDING || status == AuctionStatus.ENDED;
+    }
+
+    public void validateAuctionEnded() {
+        if (!status.equals(AuctionStatus.ENDED)) {
+            throw new AuctionException(AUCTION_NOT_ENDED);
+        }
+    }
+
+    public boolean isWinner(Long userId) {
+        return winnerId != null && winnerId.equals(userId);
     }
 
     public void startOfficialAuction() {
