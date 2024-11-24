@@ -1,5 +1,7 @@
 package org.chzz.market.domain.auctionv2.controller;
 
+import static org.chzz.market.domain.user.error.UserErrorCode.Const.USER_NOT_FOUND;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -8,15 +10,19 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import org.chzz.market.common.config.LoginUser;
-import org.chzz.market.domain.auction.dto.request.BaseRegisterRequest;
-import org.chzz.market.domain.auction.dto.response.RegisterResponse;
+import org.chzz.market.common.springdoc.ApiExceptionExplanation;
+import org.chzz.market.common.springdoc.ApiResponseExplanations;
+import org.chzz.market.common.validation.annotation.NotEmptyMultipartList;
+import org.chzz.market.domain.auctionv2.dto.request.RegisterRequest;
 import org.chzz.market.domain.auctionv2.dto.response.CategoryResponse;
 import org.chzz.market.domain.auctionv2.dto.response.OfficialAuctionResponse;
 import org.chzz.market.domain.auctionv2.dto.response.PreAuctionResponse;
 import org.chzz.market.domain.auctionv2.entity.AuctionStatus;
 import org.chzz.market.domain.auctionv2.entity.Category;
+import org.chzz.market.domain.user.error.UserErrorCode;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -92,10 +98,24 @@ public interface AuctionV2Api {
                                                     @ParameterObject @PageableDefault(sort = "newest") Pageable pageable);
 
     @Operation(summary = "경매 등록", description = "경매를 등록합니다.")
+    @ApiResponseExplanations(
+            errors = {
+                    @ApiExceptionExplanation(value = UserErrorCode.class, constant = USER_NOT_FOUND, name = "회원정보 조회 실패"),
+            }
+    )
     @PostMapping
-    ResponseEntity<RegisterResponse> registerAuction(@LoginUser Long userId,
-                                                     @RequestPart("request") @Valid BaseRegisterRequest request,
-                                                     @RequestPart(value = "images") List<MultipartFile> images);
+    ResponseEntity<Void> registerAuction(@LoginUser
+                                         Long userId,
+
+                                         @RequestPart("request")
+                                         @Valid
+                                         RegisterRequest request,
+
+                                         @RequestPart(value = "images")
+                                         @Valid
+                                         @NotEmptyMultipartList
+                                         @Size(max = 5, message = "이미지는 5장 이내로만 업로드 가능합니다.")
+                                         List<MultipartFile> images);
 
     @Operation(summary = "경매 테스트 등록", description = "테스트 등록합니다.")
     @PostMapping("/test")
