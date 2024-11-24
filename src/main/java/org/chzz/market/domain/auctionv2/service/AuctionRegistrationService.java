@@ -38,7 +38,7 @@ public class AuctionRegistrationService implements RegistrationService {
         auctionRepository.save(auction);
 
         eventPublisher.publishEvent(new ImageUploadEvent(auction, images));
-        eventPublisher.publishEvent(new AuctionRegistrationEvent(auction.getId(),auction.getEndDateTime()));
+        eventPublisher.publishEvent(new AuctionRegistrationEvent(auction.getId(), auction.getEndDateTime()));
     }
 
 

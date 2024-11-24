@@ -33,7 +33,7 @@ public class PreAuctionRegistrationService implements RegistrationService {
 
         auctionRepository.save(auction);
 
-        eventPublisher.publishEvent(new ImageUploadEvent(auction,images));
+        eventPublisher.publishEvent(new ImageUploadEvent(auction, images));
     }
 
     private AuctionV2 createAuction(final RegisterRequest request, final User user) {

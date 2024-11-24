@@ -28,7 +28,7 @@ class AuctionV2ControllerTest extends AuthenticatedRequestTest {
 
     RegisterRequest request;
 
-    MockMultipartFile image1,image2,image3,image4,image5,image6;
+    MockMultipartFile image1, image2, image3, image4, image5, image6;
     MockMultipartFile requestPart;
 
     @BeforeEach

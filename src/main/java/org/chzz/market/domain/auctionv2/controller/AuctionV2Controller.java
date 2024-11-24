@@ -1,6 +1,7 @@
 package org.chzz.market.domain.auctionv2.controller;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -9,10 +10,12 @@ import org.chzz.market.common.validation.annotation.NotEmptyMultipartList;
 import org.chzz.market.domain.auctionv2.dto.AuctionRegisterType;
 import org.chzz.market.domain.auctionv2.dto.request.RegisterRequest;
 import org.chzz.market.domain.auctionv2.dto.response.CategoryResponse;
+import org.chzz.market.domain.auctionv2.dto.response.PreAuctionResponse;
 import org.chzz.market.domain.auctionv2.entity.AuctionStatus;
 import org.chzz.market.domain.auctionv2.entity.Category;
 import org.chzz.market.domain.auctionv2.service.AuctionCategoryService;
 import org.chzz.market.domain.auctionv2.service.AuctionLookupService;
+import org.chzz.market.domain.auctionv2.service.AuctionMyService;
 import org.chzz.market.domain.auctionv2.service.AuctionTestService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +23,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -29,10 +33,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequiredArgsConstructor
+@Validated
 public class AuctionV2Controller implements AuctionV2Api {
     private final AuctionLookupService auctionLookupService;
     private final AuctionCategoryService auctionCategoryService;
     private final AuctionTestService testService;
+    private final AuctionMyService auctionMyService;
 
     /**
      * 경매 목록 조회
@@ -42,8 +48,10 @@ public class AuctionV2Controller implements AuctionV2Api {
     public ResponseEntity<Page<?>> getAuctionList(@LoginUser Long userId,
                                                   @RequestParam(required = false) Category category,
                                                   @RequestParam(required = false, defaultValue = "proceeding") AuctionStatus status,
+                                                  @RequestParam(required = false) @Min(value = 1, message = "minutes는 1 이상의 값이어야 합니다.") Integer minutes,
                                                   @PageableDefault(sort = "newest-v2") Pageable pageable) {
-        return ResponseEntity.ok(auctionLookupService.getAuctionList(userId, category, status, pageable));
+        return ResponseEntity.ok(
+                auctionLookupService.getAuctionList(userId, category, status, minutes, pageable));
     }
 
     /**
@@ -53,15 +61,6 @@ public class AuctionV2Controller implements AuctionV2Api {
     @GetMapping("/categories")
     public ResponseEntity<List<CategoryResponse>> getCategoryList() {
         return ResponseEntity.ok(auctionCategoryService.getCategories());
-    }
-
-    /**
-     * 정식 경매의 마감임박 조회
-     */
-    @Override
-    @GetMapping("/imminent")
-    public ResponseEntity<Page<?>> getImminentAuctionList(@PageableDefault(sort = "newest") Pageable pageable) {
-        return null;
     }
 
     /**
@@ -87,9 +86,10 @@ public class AuctionV2Controller implements AuctionV2Api {
      * 사용자가 등록한 사전 경매 목록 조회
      */
     @Override
-    public ResponseEntity<Page<?>> getUserPreAuctionList(@LoginUser Long userId,
-                                                         @PageableDefault(sort = "newest") Pageable pageable) {
-        return null;
+    @GetMapping("/users/pre")
+    public ResponseEntity<Page<PreAuctionResponse>> getUserPreAuctionList(@LoginUser Long userId,
+                                                                          @PageableDefault(sort = "newest-v2") Pageable pageable) {
+        return ResponseEntity.ok(auctionMyService.getUserPreAuctionList(userId, pageable));
     }
 
     /**
@@ -114,9 +114,10 @@ public class AuctionV2Controller implements AuctionV2Api {
      * 사용자가 좋아요(찜)한 경매 목록 조회
      */
     @Override
-    public ResponseEntity<Page<?>> getUserLikesAuctionList(@LoginUser Long userId,
-                                                           @PageableDefault(sort = "newest") Pageable pageable) {
-        return null;
+    @GetMapping("/users/likes")
+    public ResponseEntity<Page<PreAuctionResponse>> getLikedAuctionList(@LoginUser Long userId,
+                                                                        @PageableDefault(sort = "newest-v2") Pageable pageable) {
+        return ResponseEntity.ok(auctionMyService.getLikedAuctionList(userId, pageable));
     }
 
     /**
