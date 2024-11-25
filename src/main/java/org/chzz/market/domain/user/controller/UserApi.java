@@ -23,9 +23,6 @@ public interface UserApi {
     @Operation(summary = "나의 프로필 조회")
     ResponseEntity<UserProfileResponse> getUserProfileById(Long userId);
 
-    @Operation(summary = "사용자 프로필 조회 (닉네임 기반) - 현재 사용 X")
-    ResponseEntity<UserProfileResponse> getUserProfileByNickname(String nickname);
-
     @Operation(summary = "닉네임 중복 확인")
     ResponseEntity<NicknameAvailabilityResponse> checkNickname(@Length(min = 1, max = 15) String nickname);
 
