@@ -1,8 +1,10 @@
 package org.chzz.market.domain.product.dto;
 
+import static org.chzz.market.domain.auction.dto.request.BaseRegisterRequest.DESCRIPTION_REGEX;
 import static org.chzz.market.domain.product.entity.Product.Category;
 
-import jakarta.validation.constraints.Min;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.HashMap;
@@ -21,15 +23,17 @@ public class UpdateProductRequest {
     @Size(min = 2, max = 30, message = "제목은 최소 2글자 이상 30자 이하여야 합니다")
     private String productName;
 
-    @Pattern(regexp = "^$|.{5,1000}$", message = "상품 설명은 최소 5자에서 최대 1000자까지 가능합니다")
-    private String description;
+    @Schema(description = "개행문자 포함 최대 1000자, 개행문자 최대 10개")
+    @Size(max = 1000, message = "상품설명은 1000자 이내여야 합니다.")
+    @Pattern(regexp = DESCRIPTION_REGEX, message = "줄 바꿈 10번까지 가능합니다")
+    protected String description;
 
     private Category category;
 
     @ThousandMultiple
-    @Min(value = 1000, message = "시작 가격은 최소 1,000원 이상, 1000의 배수이어야 합니다")
+    @Max(value = 2_000_000, message = "최소금액은 200만원을 넘을 수 없습니다")
     private Integer minPrice;
 
     @Builder.Default
-    private Map<Long,Integer> imageSequence = new HashMap<>();
+    private Map<Long, Integer> imageSequence = new HashMap<>();
 }

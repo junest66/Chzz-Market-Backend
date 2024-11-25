@@ -7,7 +7,7 @@ import org.chzz.market.domain.auction.entity.Auction;
 import org.chzz.market.domain.auction.error.AuctionErrorCode;
 import org.chzz.market.domain.auction.error.AuctionException;
 import org.chzz.market.domain.auction.repository.AuctionRepository;
-import org.chzz.market.domain.payment.dto.ShippingAddressRequest;
+import org.chzz.market.domain.payment.dto.request.ShippingAddressRequest;
 import org.chzz.market.domain.payment.dto.SuccessfulPaymentEvent;
 import org.chzz.market.domain.payment.dto.request.ApprovalRequest;
 import org.chzz.market.domain.payment.dto.response.ApprovalResponse;
@@ -71,7 +71,7 @@ public class PaymentService {
 
     @Transactional(readOnly = true)
     public void validateOrderId(String orderId) {
-        if (paymentRepository.existsByOrderId(orderId) || !paymentClient.isValidOrderId(orderId)) {
+        if (paymentRepository.existsByOrderNo(orderId) || !paymentClient.isValidOrderId(orderId)) {
             throw new PaymentException(PaymentErrorCode.ALREADY_EXIST);
         }
     }
