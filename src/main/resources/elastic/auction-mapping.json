@@ -1,0 +1,42 @@
+{
+  "properties": {
+    "auctionId": {
+      "type": "long",
+      "index": false
+    },
+    "sellerId": {
+      "type": "long",
+      "index": false
+    },
+    "name": {
+      "type": "text",
+      "analyzer": "korean"
+    },
+    "description": {
+      "type": "text",
+      "analyzer": "korean"
+    },
+    "minPrice": {
+      "type": "long"
+    },
+    "category": {
+      "type": "text",
+      "analyzer": "korean"
+    },
+    "auctionStatus": {
+      "type": "keyword"
+    },
+    "imageUrl": {
+      "type": "keyword",
+      "index": false
+    },
+    "endDateTime": {
+      "type": "date",
+      "format": "date_hour_minute_second"
+    },
+    "createdAt": {
+      "type": "date",
+      "format": "date_hour_minute_second"
+    }
+  }
+}

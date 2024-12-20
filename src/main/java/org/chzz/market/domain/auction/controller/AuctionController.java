@@ -19,6 +19,7 @@ import org.chzz.market.domain.auction.entity.Category;
 import org.chzz.market.domain.auction.service.AuctionCategoryService;
 import org.chzz.market.domain.auction.service.AuctionLookupService;
 import org.chzz.market.domain.auction.service.AuctionMyService;
+import org.chzz.market.domain.auction.service.AuctionSearchService;
 import org.chzz.market.domain.auction.service.AuctionTestService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -40,6 +41,7 @@ public class AuctionController implements AuctionApi {
     private final AuctionCategoryService auctionCategoryService;
     private final AuctionTestService testService;
     private final AuctionMyService auctionMyService;
+    private final AuctionSearchService auctionSearchService;
 
     /**
      * 경매 목록 조회
@@ -54,6 +56,15 @@ public class AuctionController implements AuctionApi {
                                                   @PageableDefault(sort = "newest") Pageable pageable) {
         return ResponseEntity.ok(
                 auctionLookupService.getAuctionList(userId, category, status, minutes, pageable));
+    }
+
+    @Override
+    @GetMapping("/search")
+    public ResponseEntity<?> searchAuctionList(@LoginUser Long userId,
+                                               @RequestParam String keyword,
+                                               @RequestParam AuctionStatus status,
+                                               @PageableDefault(sort = "newest") Pageable pageable) {
+        return ResponseEntity.ok(auctionSearchService.search(userId, keyword, status, pageable));
     }
 
     /**
@@ -140,8 +151,12 @@ public class AuctionController implements AuctionApi {
     @Override
     @PostMapping("/test")
     public ResponseEntity<Void> testEndAuction(@LoginUser Long userId,
-                                               @RequestParam("seconds") int seconds) {
-        testService.test(userId, seconds);
+                                               @RequestParam("seconds") int seconds,
+                                               @RequestParam String name,
+                                               @RequestParam String description,
+                                               @RequestParam AuctionStatus status,
+                                               @RequestParam Integer minPrice) {
+        testService.test(userId, seconds, name, description, status, minPrice);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 }
