@@ -3,7 +3,6 @@ package org.chzz.market.domain.user.controller;
 import static org.chzz.market.common.filter.JWTFilter.AUTHORIZATION_HEADER;
 import static org.chzz.market.common.filter.JWTFilter.BEARER_TOKEN_PREFIX;
 
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -19,10 +18,12 @@ import org.chzz.market.domain.user.dto.request.UserCreateRequest;
 import org.chzz.market.domain.user.dto.response.NicknameAvailabilityResponse;
 import org.chzz.market.domain.user.dto.response.UserProfileResponse;
 import org.chzz.market.domain.user.entity.User;
+import org.chzz.market.domain.user.service.UserDeleteService;
 import org.chzz.market.domain.user.service.UserService;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,6 +39,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 public class UserController implements UserApi {
     private final UserService userService;
+    private final UserDeleteService userDeleteService;
     private final TokenService tokenService;
 
     /**
@@ -60,20 +62,12 @@ public class UserController implements UserApi {
     }
 
     /**
-     * 사용자 프로필 조회 (닉네임 기반) 현재 사용 X
-     */
-    @Override
-    @GetMapping("/{nickname}")
-    public ResponseEntity<UserProfileResponse> getUserProfileByNickname(@PathVariable String nickname) {
-        return ResponseEntity.ok(userService.getUserProfileByNickname(nickname));
-    }
-
-    /**
      * 닉네임 중복 확인
      */
     @Override
     @GetMapping("/check/nickname/{nickname}")
-    public ResponseEntity<NicknameAvailabilityResponse> checkNickname(@PathVariable @Length(min = 1, max = 15) String nickname) {
+    public ResponseEntity<NicknameAvailabilityResponse> checkNickname(
+            @PathVariable @Length(min = 1, max = 15) String nickname) {
         return ResponseEntity.ok((userService.checkNickname(nickname)));
     }
 
@@ -103,9 +97,8 @@ public class UserController implements UserApi {
     @PostMapping(value = "/profile", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Void> updateUserProfile(
             @LoginUser Long userId,
-            @RequestPart(required = false) MultipartFile file,
             @RequestPart @Valid UpdateUserProfileRequest request) {
-        userService.updateUserProfile(userId, file, request);
+        userService.updateUserProfile(userId, request);
         return ResponseEntity.ok().build();
     }
 
@@ -130,6 +123,17 @@ public class UserController implements UserApi {
     @Override
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
+        String refreshToken = CookieUtil.getCookieByNameOrThrow(request, TokenType.REFRESH.name());
+        tokenService.logout(refreshToken);
+        CookieUtil.expireCookie(response, TokenType.REFRESH.name());
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
+    @DeleteMapping
+    public ResponseEntity<Void> deleteUser(@LoginUser Long userId, HttpServletRequest request,
+                                           HttpServletResponse response) {
+        userDeleteService.delete(userId);
         String refreshToken = CookieUtil.getCookieByNameOrThrow(request, TokenType.REFRESH.name());
         tokenService.logout(refreshToken);
         CookieUtil.expireCookie(response, TokenType.REFRESH.name());
