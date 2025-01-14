@@ -73,6 +73,12 @@ public interface AuctionApi {
                                            @RequestParam(required = false) @Min(value = 1, message = "minutes는 1 이상의 값이어야 합니다.") Integer minutes,
                                            @ParameterObject @PageableDefault(sort = "newest") Pageable pageable);
 
+    @Operation(summary = "경매 검색", description = "경매를 검색합니다. [sort] newest(최신순), expensive(높은 가격순), cheap(낮은 가격순)")
+    ResponseEntity<?> searchAuctionList(@LoginUser Long userId,
+                                        @RequestParam String keyword,
+                                        @RequestParam AuctionStatus status,
+                                        @ParameterObject @PageableDefault(sort = "newest") Pageable pageable);
+
     @Operation(summary = "경매 카테고리 조회", description = "경매 카테고리 목록을 조회합니다.")
     @GetMapping("/categories")
     ResponseEntity<List<CategoryResponse>> getCategoryList();
@@ -120,5 +126,9 @@ public interface AuctionApi {
     @Operation(summary = "경매 테스트 등록", description = "테스트 등록합니다.")
     @PostMapping("/test")
     ResponseEntity<Void> testEndAuction(@LoginUser Long userId,
-                                        @RequestParam int seconds);
+                                        @RequestParam int seconds,
+                                        @RequestParam String name,
+                                        @RequestParam String description,
+                                        @RequestParam AuctionStatus status,
+                                        @RequestParam Integer minPrice);
 }
