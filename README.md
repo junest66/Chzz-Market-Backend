@@ -50,6 +50,92 @@ border-radius: 20px;" >
 * 사용자 프로필 및 거래 내역 관리
 * 경매 검색 기능 구현 (ElasticSearch)
 
+<details>
+<summary>서비스 화면</summary>
+<div markdown="1">
+
+<table>
+  <tr>
+    <td align="center">
+      <strong>메인 페이지</strong><br>
+      <img src="https://github.com/user-attachments/assets/9f4fbb2e-3432-4917-8a7c-dc32f9265f34" width="400">
+    </td>
+    <td align="center">
+      <strong>경매 등록 페이지</strong><br>
+      <img src="https://github.com/user-attachments/assets/41f18a01-0eb1-44ae-8f1e-06296f8e2969" width="400">
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <strong>마이 페이지</strong><br>
+      <img src="https://github.com/user-attachments/assets/a03c7569-d142-4720-9fc8-648cd1403d8f" width="400">
+    </td>
+    <td align="center">
+      <strong>프로필 수정 페이지</strong><br>
+      <img src="https://github.com/user-attachments/assets/8792e7bd-8ef0-4e24-8888-aa08b8dc66c9" width="400">
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <strong>제품 상세 페이지</strong><br>
+      <img src="https://github.com/user-attachments/assets/92d5a69f-ca07-4e49-abde-39cc62353f00" width="400">
+    </td>
+    <td align="center">
+      <strong>경매 목록 페이지</strong><br>
+      <img src="https://github.com/user-attachments/assets/1235b673-bd4e-46ff-94c7-9e42ec7f1031" width="400">
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <strong>알림 페이지</strong><br>
+      <img src="https://github.com/user-attachments/assets/35909e7b-88d8-47d5-a190-696418f9b03b" width="400">
+    </td>
+    <td align="center">
+      <strong>로그인 페이지</strong><br>
+      <img src="https://github.com/user-attachments/assets/0ec8a48c-7d19-4e7c-b2f0-0b4f85bd66fa" width="400">
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <strong>회원가입 페이지</strong><br>
+      <img src="https://github.com/user-attachments/assets/e44fcee6-31b8-4095-a9b2-d45911dfd4b9" width="400">
+    </td>
+    <td align="center">
+      <strong>찜한 사전 경매목록 페이지</strong><br>
+      <img src="https://github.com/user-attachments/assets/0e572b58-b394-4003-9196-22f5be0feca8" width="400">
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <strong>참여한 정식 경매 내역 페이지</strong><br>
+      <img src="https://github.com/user-attachments/assets/cf754bca-e1af-496d-9b0f-361038550c38" width="400">
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <strong>결제 페이지</strong><br>
+      <img src="https://github.com/user-attachments/assets/26b991b1-6bad-4515-81eb-ea31fcbfcd13" width="400">
+    </td>
+    <td align="center">
+      <strong>배송지 목록 페이지</strong><br>
+      <img src="https://github.com/user-attachments/assets/d01c638e-22b2-4dc9-837d-6c8b8fd0f0b1" width="400">
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <strong>배송지 편집 페이지</strong><br>
+      <img src="https://github.com/user-attachments/assets/84a5008b-b7c4-4f89-80a5-d3644adaee87" width="400">
+    </td>
+    <td align="center">
+      <strong>배송지 추가 페이지</strong><br>
+      <img src="https://github.com/user-attachments/assets/f23ec0a0-cce8-4e04-917c-b21c92723705" width="400">
+    </td>
+  </tr>
+</table>
+
+</details>
+
+
 ## 💡 담당 역할
 - 실시간 알림 기능
     -  입찰, 낙찰, 댓글 등 주요 이벤트 발생 시 사용자에게 실시간 알림 전송
