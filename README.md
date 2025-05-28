@@ -27,13 +27,9 @@ border-radius: 20px;" >
 
 [✨ <치즈마켓> 사용해보기](https://chzzmarket.store/)
 
-[//]: # ([📄 API 문서 바로가기]&#40;https://app.swaggerhub.com/apis-docs/CHLWNDKS333_1/chzz-market-api/1.0.0#/Products&#41;)
-
 [🔗 Notion 바로가기](https://www.notion.so/b5153d7acbcc407b8c58e2efcd527dca?pvs=4)
 
 <br>
-
-[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2FCHZZK-Study%2FChzz-Market-Backend&count_bg=%23F8EB00&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=chzzmarket&edge_flat=true)](https://hits.seeyoufarm.com)
 
 </div>
 
@@ -41,11 +37,9 @@ border-radius: 20px;" >
 
 ## 🌼 프로젝트 소개
 
-> 개발 기간: 24.07.01 ~ 진행중
+> 개발 기간: 24.07 ~ 2024.12
 
 치즈마켓은 실시간 경매 기반의 중고거래 플랫폼입니다. 백엔드 개발에서는 다음과 같은 주요 기능을 구현했습니다
-
-> 추가적인 상세 설명 화면 소개 등 필요
 
 * 사용자 인증 및 권한 관리 (OAuth2.0 기반)
 * 실시간 경매 시스템
@@ -54,6 +48,26 @@ border-radius: 20px;" >
 * 알림 서비스 (SSE를 이용한 실시간 알림)
 * 이미지 업로드 및 CDN 연동 (AWS S3, CloudFront 활용)
 * 사용자 프로필 및 거래 내역 관리
+* 경매 검색 기능 구현 (ElasticSearch)
+
+## 💡 담당 역할
+- 실시간 알림 기능
+    -  입찰, 낙찰, 댓글 등 주요 이벤트 발생 시 사용자에게 실시간 알림 전송
+    - **Server-Sent Events(SSE)** 를 활용해 클라이언트와 지속적인 연결 유지
+    - **Redis Pub/Sub**을 이용한 스케일 아웃 환경에서 안정적인 이벤트 브로드캐스팅 구현
+ 
+- 사용자 인증 및 권한 관리
+    - Spring Security를 활용해 **OAuth2 기반 소셜 로그인** 구현 (카카오, 네이버 등)
+    - 로그인 후 **JWT 기반 액세스·리프레시 토큰 발급** 및 인증 처리
+- 경매 로직
+    - 경매 조회 부터 입찰, 낙찰까지의 **경매 상태 흐름 관리** 로직 구현 
+    - **Quartz 기반 스케줄링**을 통해 경매 마감 시간에 맞춰 낙찰 처리 자동화
+
+- 경매 검색 기능
+    - **ElasticSearch 연동**을 통한 간단한 경매 키워드 검색 기능 추가
+
+- 사용자 프로필 및 경매 참여 이력 조회 기능
+- 좋아요(찜) 기능 구현
 
 <br>
 
@@ -75,7 +89,8 @@ border-radius: 20px;" >
                 <img src="https://img.shields.io/badge/spring-6DB33F?style=for-the-badge&logo=spring&logoColor=white"> 
                 <img alt="Spring Boot" src ="https://img.shields.io/badge/springboot-6DB33F.svg?&style=for-the-badge&logo=SpringBoot&logoColor=white"/>
                 <img src="https://img.shields.io/badge/Spring Data JPA-6DB33F?style=for-the-badge&logoColor=white">
-                <img src="https://img.shields.io/badge/Spring Security-6DB33F?style=for-the-badge&logo=Spring Security&logoColor=white">
+                <img src="https://img.shields.io/badge/jpa-F46800?style=for-the-badge&logo=jpa&logoColor=white">
+                <img src="https://img.shields.io/badge/Querydsl-85EA2D?style=for-the-badge&logo=Querydsl&logoColor=white">
             </td>
         </tr>
                 <tr>
@@ -85,7 +100,7 @@ border-radius: 20px;" >
             <td>
                 <img src="https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=MySQL&logoColor=white">
                 <img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=Redis&logoColor=white">
-                <img src="https://img.shields.io/badge/Flyway-CC0200?style=for-the-badge&logo=Flyway&logoColor=white">
+                <img src="https://img.shields.io/badge/Elasticsearch-005571?style=for-the-badge&logo=Elasticsearch&logoColor=white">
             </td>
         </tr>
                 <tr>
@@ -125,10 +140,8 @@ border-radius: 20px;" >
                 <p>기타</p>
             </td>
             <td>
-                <img src="https://img.shields.io/badge/jpa-F46800?style=for-the-badge&logo=jpa&logoColor=white">
-                <img src="https://img.shields.io/badge/Querydsl-85EA2D?style=for-the-badge&logo=Querydsl&logoColor=white">
                 <img src="https://img.shields.io/badge/Quartz-2496ED?style=for-the-badge&logo=Quartz&logoColor=white">
-                <img src="https://img.shields.io/badge/jwt-CC0200?style=for-the-badge&logo=jwt&logoColor=white">
+                <img src="https://img.shields.io/badge/Flyway-CC0200?style=for-the-badge&logo=Flyway&logoColor=white">
             </td>
         </tr>
     </tbody>
@@ -138,13 +151,7 @@ border-radius: 20px;" >
 
 ## ⚙️ 시스템 아키텍처
 
-<img src="https://drive.google.com/uc?export=download&id=16VASXkZ-iDVkuoOgd3BgB6PkYalfZFSI"/>
-
-<br>
-
-## 🛢️ ERD
-
-> 추후 업데이트 예정
+![최종치즈마켓아키텍쳐](https://github.com/user-attachments/assets/0051b05e-67cb-48c5-8717-d759687cefae)
 
 <br>
 
@@ -163,22 +170,22 @@ border-radius: 20px;" >
     </td>
   </tr>
   <tr height="120px">
-    <td align="center" width="160px">
-      <a href="https://github.com/viaunixue"><img src="https://avatars.githubusercontent.com/u/77084379?v=4" style="border-radius:50%"/></a>
+      <td align="center" width="160px">
+      <a href="https://github.com/junest66"><img src="https://avatars.githubusercontent.com/u/121853214?v=4" style="border-radius:50%"/></a>
     </td>
     <td align="center" width="160px">
-      <a href="https://github.com/junest66"><img src="https://avatars.githubusercontent.com/u/121853214?v=4" style="border-radius:50%"/></a>
+      <a href="https://github.com/viaunixue"><img src="https://avatars.githubusercontent.com/u/77084379?v=4" style="border-radius:50%"/></a>
     </td>
     <td align="center" width="160px">
       <a href="https://github.com/YeaChan05"><img src="https://avatars.githubusercontent.com/u/88381563?v=4" style="border-radius:50%" /></a>
     </td>
   </tr>
   <tr height="30px">
-    <td align="center" width="160px">
-      <a href="https://github.com/viaunixue">정종현</a>
+      <td align="center" width="160px">
+      <a href="https://github.com/junest66">최준</a>
     </td>
     <td align="center" width="160px">
-      <a href="https://github.com/junest66">최준</a>
+      <a href="https://github.com/viaunixue">정종현</a>
     </td>
     <td align="center" width="160px">
       <a href="https://github.com/YeaChan05">신예찬</a>
